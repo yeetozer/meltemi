@@ -1,0 +1,187 @@
+[
+  {
+    "file": "sprites/rider.png",
+    "w": 72,
+    "h": 72
+  },
+  {
+    "file": "sprites/rider_wipeout.png",
+    "w": 72,
+    "h": 72
+  },
+  {
+    "file": "sprites/kite_sunset.png",
+    "w": 140,
+    "h": 70
+  },
+  {
+    "file": "sprites/kite_seaglass.png",
+    "w": 140,
+    "h": 70
+  },
+  {
+    "file": "sprites/kite_olive.png",
+    "w": 140,
+    "h": 70
+  },
+  {
+    "file": "sprites/kite_lemon.png",
+    "w": 140,
+    "h": 70
+  },
+  {
+    "file": "sprites/buoy.png",
+    "w": 40,
+    "h": 40
+  },
+  {
+    "file": "sprites/rock_small.png",
+    "w": 70,
+    "h": 60
+  },
+  {
+    "file": "sprites/rock_big.png",
+    "w": 140,
+    "h": 110
+  },
+  {
+    "file": "sprites/turtle.png",
+    "w": 60,
+    "h": 70
+  },
+  {
+    "file": "sprites/boat_fishing.png",
+    "w": 70,
+    "h": 160
+  },
+  {
+    "file": "sprites/jetski.png",
+    "w": 44,
+    "h": 90
+  },
+  {
+    "file": "sprites/sailboat.png",
+    "w": 80,
+    "h": 180
+  },
+  {
+    "file": "sprites/shell.png",
+    "w": 32,
+    "h": 32
+  },
+  {
+    "file": "ui/icon_shell.png",
+    "w": 48,
+    "h": 48
+  },
+  {
+    "file": "sprites/starfish.png",
+    "w": 40,
+    "h": 40
+  },
+  {
+    "file": "sprites/gust.png",
+    "w": 80,
+    "h": 80
+  },
+  {
+    "file": "sprites/wave.png",
+    "w": 256,
+    "h": 48
+  },
+  {
+    "file": "sprites/wave_gold.png",
+    "w": 256,
+    "h": 48
+  },
+  {
+    "file": "sprites/splash.png",
+    "w": 96,
+    "h": 96
+  },
+  {
+    "file": "sprites/spray.png",
+    "w": 16,
+    "h": 16
+  },
+  {
+    "file": "sprites/sparkle.png",
+    "w": 16,
+    "h": 16
+  },
+  {
+    "file": "sprites/scenery/shore_left.png",
+    "w": 160,
+    "h": 512
+  },
+  {
+    "file": "sprites/scenery/shore_right.png",
+    "w": 160,
+    "h": 512
+  },
+  {
+    "file": "sprites/scenery/house_white.png",
+    "w": 90,
+    "h": 90
+  },
+  {
+    "file": "sprites/scenery/house_terracotta.png",
+    "w": 90,
+    "h": 90
+  },
+  {
+    "file": "sprites/scenery/olive_tree.png",
+    "w": 80,
+    "h": 80
+  },
+  {
+    "file": "sprites/scenery/umbrella.png",
+    "w": 56,
+    "h": 56
+  },
+  {
+    "file": "sprites/scenery/lighthouse.png",
+    "w": 90,
+    "h": 90
+  },
+  {
+    "file": "sprites/scenery/pier.png",
+    "w": 120,
+    "h": 320
+  },
+  {
+    "file": "sprites/scenery/sandbar.png",
+    "w": 200,
+    "h": 90
+  },
+  {
+    "file": "ui/icon_pause.png",
+    "w": 64,
+    "h": 64
+  },
+  {
+    "file": "ui/icon_sound_on.png",
+    "w": 64,
+    "h": 64
+  },
+  {
+    "file": "ui/icon_sound_off.png",
+    "w": 64,
+    "h": 64
+  },
+  {
+    "file": "ui/btn_bg.png",
+    "w": 96,
+    "h": 96
+  },
+  {
+    "file": "ui/logo.png",
+    "w": 600,
+    "h": 260
+  },
+  {
+    "file": "ui/icon.png",
+    "w": 1024,
+    "h": 1024
+  }
+]
