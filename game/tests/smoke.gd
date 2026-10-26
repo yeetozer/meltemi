@@ -22,6 +22,10 @@ func go() -> void:
  if game.state=="over": game.start(); retries+=1
  print("SMOKE title -> play -> wipeout -> retry -> play; simulated=60s retries=",retries," final=",game.state)
  var ok: bool=retries>0 and game.state=="play"
+ game.ambient.stream_paused=false
+ game.ambient.stop()
+ game.ambient.stream=null
+ await create_timer(0.15).timeout
  game.queue_free()
  await process_frame
  await create_timer(0.15).timeout
