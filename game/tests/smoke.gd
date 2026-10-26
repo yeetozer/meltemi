@@ -22,6 +22,24 @@ func go() -> void:
  if game.state=="over": game.start(); retries+=1
  print("SMOKE title -> play -> wipeout -> retry -> play; simulated=60s retries=",retries," final=",game.state)
  var ok: bool=retries>0 and game.state=="play"
+ # Input regression: one phone tap = touch + emulated mouse; tack must flip exactly once.
+ game.start(); game._process(1.0/60)
+ var taps_ok: bool=true
+ for i in range(3):
+  var before: int=game.run.tack
+  game.last_tap_ms=-1000
+  var touch: InputEventScreenTouch=InputEventScreenTouch.new(); touch.pressed=true; touch.position=Vector2(360,900)
+  var mouse: InputEventMouseButton=InputEventMouseButton.new(); mouse.pressed=true; mouse.button_index=MOUSE_BUTTON_LEFT; mouse.position=Vector2(360,900); mouse.device=InputEvent.DEVICE_ID_EMULATION
+  var mouse_real: InputEventMouseButton=mouse.duplicate(); mouse_real.device=0
+  game._unhandled_input(touch); game._unhandled_input(mouse); game._unhandled_input(mouse_real)
+  game._process(1.0/60)
+  taps_ok=taps_ok and game.run.tack==-before
+ var pause_ok: bool=true
+ var t0: int=game.run.tack; game.last_tap_ms=-1000
+ var on_pause: InputEventScreenTouch=InputEventScreenTouch.new(); on_pause.pressed=true; on_pause.position=game.pause_button.get_global_rect().get_center()
+ game._unhandled_input(on_pause); pause_ok=game.run.tack==t0
+ print("INPUT one tap flips tack exactly once: ",taps_ok,"; tap on pause button does not flip: ",pause_ok)
+ ok=ok and taps_ok and pause_ok
  game.ambient.stream_paused=false
  game.ambient.stop()
  game.ambient.stream=null

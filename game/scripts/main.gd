@@ -32,12 +32,17 @@ var snap: String = ""
 var snap_frames: int = 0
 var capture_done: bool = false
 var spin_hint: bool = false
+var web_debug: bool = false
+var raw_touches: int = 0
+var unhandled_touches: int = 0
+var actions: int = 0
 func _exit_tree() -> void:
  if is_instance_valid(ambient):
   ambient.stop()
   ambient.stream=null
 func _ready() -> void:
  Engine.max_fps = 60
+ Input.emulate_touch_from_mouse = not DisplayServer.is_touchscreen_available()
  save.read_save()
  var theme_: Theme = Theme.new()
  var fonts: DirAccess = DirAccess.open("res://assets/fonts")
@@ -68,6 +73,8 @@ func _ready() -> void:
  ambient=AudioStreamPlayer.new(); ambient.stream=AssetLib.sound("amb_ocean"); ambient.volume_db=-16; add_child(ambient); ambient.finished.connect(func() -> void: ambient.play()); ambient.play()
  for arg: String in OS.get_cmdline_user_args():
   if arg.begins_with("--capture="): snap=arg.trim_prefix("--capture=")
+ if OS.has_feature("web"):
+  web_debug=str(JavaScriptBridge.eval("location.search")).contains("debug=1")
  show_menu("title")
  if snap=="shop": show_menu("shop")
  if snap=="pause": start(); show_menu("pause")
@@ -117,13 +124,37 @@ func action() -> void:
  if state=="title": start(); return
  if state!="play": return
  var airborne: bool=run.air>0
+ actions+=1
  run.tap(); audio("trick" if airborne else "tack")
  if not airborne: spray.position=Vector2(run.x,rider_y()); spray.restart(); spray.emitting=true
  Input.vibrate_handheld(12)
+func over_button(pos: Vector2) -> bool:
+ if pause_button.visible and pause_button.get_global_rect().grow(8).has_point(pos): return true
+ if panel.visible:
+  for child: Node in panel.get_children():
+   if child is Button and (child as Button).get_global_rect().has_point(pos): return true
+ return false
+## One physical tap must produce exactly one action. A phone tap reaches Godot as
+## a touch AND as a mouse click (Godot's emulated mouse, plus Safari's own
+## compatibility mouse events). Handling both flipped the tack twice, so the
+## rider never changed direction. Only touch presses are gameplay taps; desktop
+## mouse clicks become touches through emulate_touch_from_mouse, which is turned
+## off on touchscreens so Safari's compatibility clicks cannot become touches.
+var last_tap_ms: int = -1000
+func pointer_tap(event: InputEvent) -> bool:
+ if not (event is InputEventScreenTouch and event.pressed): return false
+ var now: int=Time.get_ticks_msec()
+ if now-last_tap_ms<70: return false
+ last_tap_ms=now
+ return true
+func _input(event: InputEvent) -> void:
+ if event is InputEventScreenTouch and event.pressed: raw_touches+=1
 func _unhandled_input(event: InputEvent) -> void:
- if event is InputEventScreenTouch and event.pressed: action()
- elif event is InputEventMouseButton and event.pressed and event.button_index==MOUSE_BUTTON_LEFT and not Input.emulate_touch_from_mouse: action()
- elif event is InputEventKey and event.pressed:
+ if pointer_tap(event):
+  var pos: Vector2=event.position
+  if over_button(pos): return
+  unhandled_touches+=1; action(); get_viewport().set_input_as_handled()
+ elif event is InputEventKey and event.pressed and not event.echo:
   if event.keycode==KEY_SPACE: action()
   elif event.keycode==KEY_ESCAPE and state=="play": show_menu("pause")
 func rider_y() -> float: return get_viewport_rect().size.y*0.68
@@ -195,6 +226,8 @@ func _process(dt: float) -> void:
  shadow.position=pos+Vector2(air_height*35,air_height*35); shadow.scale=Vector2.ONE*(1-air_height*0.35); shadow.color.a=0.25-air_height*0.12
  for i in range(2): lines[i].points=PackedVector2Array([rider.position+Vector2((i*2-1)*13,-10),kite.position+Vector2((i*2-1)*55,15).rotated(kite.rotation)*scale_*1.2])
  queue_redraw()
+ if web_debug:
+  JavaScriptBridge.eval("window.__meltemi=%s" % JSON.stringify({"state":state,"tack":run.tack,"heading":snappedf(run.heading,0.001),"x":snappedf(run.x,0.1),"raw":raw_touches,"unhandled":unhandled_touches,"actions":actions,"dead":run.dead}))
  if snap!="" and not capture_done:
   snap_frames+=1
   if snap_frames==8: capture()

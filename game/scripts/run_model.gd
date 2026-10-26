@@ -47,7 +47,7 @@ func tick(dt: float) -> void:
  if combo_time > 6: combo = 1
  speed = lerpf(START_SPEED,MAX_SPEED,minf(elapsed/90.0,1.0)) * (1.5 if gust > 0 else 1.0)
  if x < SHORE+38 or x > 720-SHORE-38: speed *= 0.6
- heading = lerp_angle(heading,float(tack)*0.698,minf(dt/0.22,1.0))
+ heading = lerp_angle(heading,float(tack)*0.698,minf(dt/0.15,1.0))
  x += sin(heading)*speed*dt
  distance += cos(heading)*speed*dt/10.0
  if x < SHORE or x > 720-SHORE: crash("Beached")
