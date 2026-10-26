@@ -1,5 +1,7 @@
 extends Node
 var cache: Dictionary = {}
+func _exit_tree() -> void:
+ cache.clear()
 func texture(file: String, size: Vector2 = Vector2(72,72)) -> Texture2D:
  var path: String = "res://assets/" + file
  if cache.has(path): return cache[path] as Texture2D

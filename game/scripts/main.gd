@@ -29,6 +29,10 @@ var snap: String = ""
 var snap_frames: int = 0
 var capture_done: bool = false
 var spin_hint: bool = false
+func _exit_tree() -> void:
+ if is_instance_valid(ambient):
+  ambient.stop()
+  ambient.stream=null
 func _ready() -> void:
  Engine.max_fps = 60
  save.read_save()
@@ -76,7 +80,10 @@ func clear_panel() -> void:
 func show_menu(which: String) -> void:
  state=which; clear_panel(); panel.show(); hud.hide(); hint.text=""
  if which=="title":
-  label_("M E L T E M I",56); label_("CHASE THE WIND",20); label_("Best  %s   ·   Shells  %s" % [save.data.best,save.data.shells],23); button("Tap to ride",start); button("Kites",func() -> void: show_menu("shop")); button("Settings",func() -> void: show_menu("settings"))
+  if ResourceLoader.exists("res://assets/ui/logo.png"):
+   var logo_: TextureRect=TextureRect.new(); logo_.texture=AssetLib.texture("ui/logo.png",Vector2(600,260)); logo_.expand_mode=TextureRect.EXPAND_IGNORE_SIZE; logo_.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_CENTERED; logo_.custom_minimum_size=Vector2(420,160); panel.add_child(logo_)
+  else: label_("M E L T E M I",56)
+  label_("CHASE THE WIND",20); label_("Best  %s   ·   Shells  %s" % [save.data.best,save.data.shells],23); button("Tap to ride",start); button("Kites",func() -> void: show_menu("shop")); button("Settings",func() -> void: show_menu("settings"))
  elif which=="pause" or which=="settings":
   label_("Catch your breath" if which=="pause" else "Make it yours",36)
   if which=="pause":
@@ -190,12 +197,14 @@ func capture() -> void:
  DirAccess.make_dir_recursive_absolute("res://../build/qa")
  var error: Error=image.save_png("res://../build/qa/"+snap+".png")
  print("CAPTURE ",snap," ",error)
+ ambient.stop(); ambient.stream=null
+ await get_tree().create_timer(0.1).timeout
  get_tree().quit()
 func _draw() -> void:
  var height: float=get_viewport_rect().size.y
  var zone: int=int(run.distance/1000)%4
  var colors: Array[Color]=[Color("4fb3bf"),Color("398f9f"),Color("1f6f8b"),Color("ac8585")]
- draw_rect(Rect2(0,0,720,height),colors[zone])
+ draw_rect(Rect2(-80,-80,880,height+160),colors[zone])
  for i in range(32):
   var yy: float=fposmod(float(i)*67+clock*24,height)
   var xx: float=150+fposmod(float(i)*137,430)

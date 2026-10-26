@@ -2,7 +2,7 @@ extends SceneTree
 var game: Node
 func _initialize() -> void: call_deferred("go")
 func go() -> void:
- game=load("res://scenes/main.tscn").instantiate(); root.add_child(game)
+ game=load("res://scenes/main.tscn").instantiate(); game.save.path="user://smoke_save.json"; root.add_child(game)
  if game.state!="title": quit(1); return
  game.start()
  var retries: int=0
@@ -20,4 +20,8 @@ func go() -> void:
  if game.state=="crash": game._process(0.7)
  if game.state=="over": game.start(); retries+=1
  print("SMOKE title -> play -> wipeout -> retry -> play; simulated=60s retries=",retries," final=",game.state)
- quit(0 if retries>0 and game.state=="play" else 1)
+ var ok: bool=retries>0 and game.state=="play"
+ game.queue_free()
+ await process_frame
+ await create_timer(0.15).timeout
+ quit(0 if ok else 1)
