@@ -5,6 +5,7 @@ func go() -> void:
  game=load("res://scenes/main.tscn").instantiate(); game.save.path="user://smoke_save.json"; root.add_child(game)
  if game.state!="title": quit(1); return
  game.start()
+ game.save.data.sound=false
  var retries: int=0
  for frame in range(3600):
   if game.state=="play":
