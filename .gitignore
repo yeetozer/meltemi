@@ -1,0 +1,7 @@
+game/.godot/
+build/
+*.tmp
+.export_credentials
+export_credentials.cfg
+release.json
+*.log

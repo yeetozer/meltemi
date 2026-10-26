@@ -1,0 +1,22 @@
+config_version=5
+[application]
+config/name="Meltemi"
+run/main_scene="res://scenes/main.tscn"
+[autoload]
+AssetLib="*res://scripts/asset_lib.gd"
+[display]
+window/size/viewport_width=720
+window/size/viewport_height=1280
+window/stretch/mode="canvas_items"
+window/stretch/aspect="expand"
+window/handheld/orientation=1
+[rendering]
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"
+textures/default_filters/use_nearest_mipmap_filter=false
+[application]
+config/features=PackedStringArray("4.7", "GL Compatibility")
+[input_devices]
+pointing/emulate_touch_from_mouse=true
+[physics]
+common/physics_ticks_per_second=60
