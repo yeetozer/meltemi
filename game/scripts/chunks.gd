@@ -6,15 +6,17 @@ func chunk(seed_: int, index: int) -> Dictionary:
  rng.seed = seed_ + index * 7919
  var gap: float = rng.randf_range(230,490)
  var objects: Array[Dictionary] = []
- for row in range(5):
+ var rows: int=5+mini(index/4,3)
+ var spacing: float=1225.0/float(rows)
+ for row in range(rows):
   var kind: String = ["buoy","rock_small","rock_big","turtle","boat_fishing","jetski","sailboat"][rng.randi_range(0,6)]
   var size: Vector2 = SIZES[kind]
   var side: int = -1 if rng.randf() < 0.5 else 1
   var px: float = gap + float(side)*(110+size.x/2)
   if px-size.x/2 > 104 and px+size.x/2 < 616:
-   objects.append({"kind":kind,"x":px,"y":-float(row)*245.0,"size":size,"base":px,"phase":rng.randf()*TAU,"move":kind in ["boat_fishing","jetski"],"side":side,"gap":gap})
+   objects.append({"kind":kind,"x":px,"y":-float(row)*spacing,"size":size,"base":px,"phase":rng.randf()*TAU,"move":kind in ["boat_fishing","jetski"],"side":side,"gap":gap})
   var pickup: String = "starfish" if row == 3 else "shell"
-  objects.append({"kind":pickup,"x":gap,"y":-float(row)*245.0-80,"size":SIZES[pickup],"move":false})
+  objects.append({"kind":pickup,"x":gap,"y":-float(row)*spacing-80,"size":SIZES[pickup],"move":false})
  var wave: String = "wave_gold" if index%3 == 2 else "wave"
  objects.append({"kind":wave,"x":gap,"y":-650.0,"size":SIZES[wave],"move":false})
  objects.append({"kind":"gust","x":gap,"y":-1100.0,"size":SIZES["gust"],"move":false})
