@@ -35,22 +35,30 @@ control. Raw signing logs and private keys are not published; keys are deleted
 in an always-run cleanup. On signing failure, raw logs stay on the ephemeral runner
 rather than leaking device IDs in Actions output.
 
-## Reusable signing setup (lead action required before merging/running)
+## Persistent signing setup and renewal
 
-Add these repository Actions secrets, without putting their values in chat or logs:
+The persistent Apple Distribution certificate (suffix `V9SZ4A`) and existing
+`Meltemi AdHoc CI` profile are configured. Both expire on **2027-10-27**; the
+profile includes **3 devices**. Native signing was verified by
+[run 40507328645](https://github.com/yeetozer/meltemi/actions/runs/40507328645),
+which published build **1000.9** without creating a new certificate.
+
+The three repository Actions signing secrets are:
 
 - `IOS_DISTRIBUTION_P12_BASE64`: base64 of a password-protected PKCS#12 containing
-  ONE existing Apple Distribution (or compatible iOS Distribution) certificate AND
-  its private key. Export from the machine/password manager that owns that key.
-  The inventory's existing iOS distribution identity may be reusable only if its
-  private key is available; the ASC API cannot recover private keys. Do not create
-  or revoke any certificate as part of this investigation.
+  ONE existing Apple Distribution certificate AND its private key. Only identity
+  names beginning with `Apple Distribution:` are accepted; legacy identity names
+  are not supported. The ASC API cannot recover private keys.
 - `IOS_DISTRIBUTION_P12_PASSWORD`: the PKCS#12 export password.
-- `IOS_ADHOC_PROFILE_NAME`: exact name of one existing active iOS Ad Hoc profile for
-  `com.yeetozer.meltemi`, containing that distribution certificate and the tester.
-  The read-only inventory currently found no such profile: a lead must separately
-  arrange provisioning in the developer portal before enabling this branch. This
-  patch intentionally fails closed rather than creating a profile or certificate.
+- `IOS_ADHOC_PROFILE_NAME`: exact existing profile name, `Meltemi AdHoc CI`.
+
+A durable signing copy is stored at `~/.config/meltemi-signing/` on the VPS.
+No passwords are stored there. Never put secret values in chat, logs or git.
+Renew the certificate and profile **before 2027-10-27**, retain the private key
+securely, and update the corresponding Actions secrets through the approved
+secret-management process. Adding a device requires regenerating the profile to
+include it and retaining the configured profile name before rebuilding. CI fails
+closed rather than creating or updating certificates or profiles.
 
 `tools/ios_signing.py` imports the identity into a temporary unlocked keychain,
 fetches the exact named active profile with GET requests only, checks team, bundle,
@@ -59,8 +67,8 @@ and installs it locally. Archive and export both use manual signing; neither has
 `-allowProvisioningUpdates` or API credentials, so Xcode cannot create signing
 assets. The existing device/bundle registration step is unchanged. An always-run
 cleanup restores the keychain search list and removes the temporary keychain,
-profile and PKCS#12. Native execution remains untested until the lead authorizes
-an iOS build; no iOS workflow was dispatched during this preparation.
+profile and PKCS#12 independently on a best-effort basis, even if another cleanup
+action fails. Separate always-run cleanup removes temporary passwords and .p8 keys.
 
 ### Why not unsigned archive + cloud signing?
 
@@ -109,5 +117,5 @@ publish that branch/root and a deploy-key push must trigger a Pages build (other
 An IPA must remain below GitHub's 100 MiB per-file limit. No web build is republished
 by this workflow. Re-running the same Actions run retains its build number.
 
-Prepared on Linux only: native export, signing, provisioning and installation
-require the first manually dispatched macOS run; preparation does not run it.
+Native export and signing were verified by the macOS run linked above;
+installation still requires a registered device. Workflow dispatch remains manual.

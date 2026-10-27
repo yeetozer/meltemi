@@ -169,7 +169,28 @@ jobs:
           test "$(git rev-parse HEAD)" = "$(git ls-remote origin refs/heads/main | cut -f1)"
       - name: Delete temporary signing keychain and profile
         if: always()
-        run: python3 tools/ios_signing.py cleanup
-      - name: Delete private key
+        run: |
+          # Every action is best-effort, including under the runner's bash -e.
+          # Suppress diagnostics so signing paths and identifiers remain private.
+          python3 - <<'PY' >/dev/null 2>&1 || true
+          import json, os, pathlib, subprocess
+          original = pathlib.Path(os.environ['RUNNER_TEMP']) / 'original-keychains.json'
+          if original.exists():
+              subprocess.run(['security', 'list-keychains', '-d', 'user', '-s',
+                              *json.loads(original.read_text())], check=True)
+          PY
+          security delete-keychain "$RUNNER_TEMP/meltemi-signing.keychain-db" >/dev/null 2>&1 || true
+          python3 - <<'PY' >/dev/null 2>&1 || true
+          import os, pathlib
+          installed = pathlib.Path(os.environ['RUNNER_TEMP']) / 'installed-profile-path'
+          if installed.exists():
+              pathlib.Path(installed.read_text()).unlink(missing_ok=True)
+          PY
+          rm -f "$RUNNER_TEMP/distribution.p12" >/dev/null 2>&1 || true
+          rm -f "$RUNNER_TEMP/adhoc.mobileprovision" "$RUNNER_TEMP/installed-profile-path" "$RUNNER_TEMP/original-keychains.json" >/dev/null 2>&1 || true
+      - name: Delete private key and temporary passwords
         if: always()
-        run: rm -rf "$RUNNER_TEMP/private_keys"
+        run: |
+          rm -rf "$RUNNER_TEMP/private_keys" >/dev/null 2>&1 || true
+          # Passwords normally stay in memory; remove any temporary signing files too.
+          find "$RUNNER_TEMP" -type f \( -name '*.p12' -o -name '*.p8' -o -iname '*password*' \) -delete >/dev/null 2>&1 || true
