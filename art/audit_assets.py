@@ -3,7 +3,7 @@
 from pathlib import Path
 import json,struct,ctypes as C,ctypes.util,wave,math,array
 R=Path(__file__).resolve().parent;O=R.parent/'game/assets'
-manifest=json.loads((R/'manifest.json').read_text());assert len(manifest)==37
+manifest=json.loads((R/'manifest.json').read_text());assert len(manifest)==41
 lib=C.CDLL(ctypes.util.find_library('cairo'))
 def fn(n,args,ret):
  f=getattr(lib,n);f.argtypes=args;f.restype=ret;return f
@@ -29,4 +29,4 @@ for a in manifest:lines.append(f'- `{a["file"]}` — self-authored SVG: `art/src
 lines+=['','## Procedural audio','']
 for p in sorted((O/'audio').glob('*.wav')):lines.append(f'- `audio/{p.name}` — original procedural synthesis, deterministic source `art/build_audio.py`; no recordings or samples.')
 lines+=['','## Fonts','','- `fonts/Fredoka-Variable.ttf` — Fredoka by the Fredoka project authors, SIL Open Font License 1.1; official source https://github.com/google/fonts/tree/main/ofl/fredoka ; downloaded from https://raw.githubusercontent.com/google/fonts/main/ofl/fredoka/Fredoka%5Bwdth,wght%5D.ttf .','- `fonts/Fredoka-SemiBold.ttf` — static instance of the same official Fredoka variable font at weight 600, width 100, generated with fontTools; SIL OFL 1.1.','- `fonts/OFL.txt` — upstream SIL OFL 1.1 licence text: https://raw.githubusercontent.com/google/fonts/main/ofl/fredoka/OFL.txt .','','This ledger (`LICENSES.md`) documents every exported asset. Godot-generated `.import` sidecars are engine metadata, not source artwork.']
-(O/'LICENSES.md').write_text('\n'.join(lines)+'\n');(R/'qa/asset_audit.json').write_text(json.dumps(checks,indent=2));print('PASS: 37 exact-size PNGs, SVG source coverage, transparent sprite/UI backgrounds, opaque icon, 12 mono 44.1kHz 16-bit WAVs, silent endpoints and <= -1dBFS peaks. Font files verified present. Licence ledger generated.')
+(O/'LICENSES.md').write_text('\n'.join(lines)+'\n');(R/'qa/asset_audit.json').write_text(json.dumps(checks,indent=2));print('PASS: 41 exact-size PNGs, SVG source coverage, transparent sprite/UI backgrounds, opaque icon, 12 mono 44.1kHz 16-bit WAVs, silent endpoints and <= -1dBFS peaks. Font files verified present. Licence ledger generated.')

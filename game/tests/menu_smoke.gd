@@ -9,9 +9,16 @@ func press(text: String) -> void:
 func test() -> void:
  game=load("res://scripts/main.gd").new(); root.add_child(game)
  await process_frame
- game.save.data.best=0; game.save.data.shells=0; game.save.data.xp=0; game.show_menu("title")
- press("First ride"); assert(game.state=="title")
- press("3 missions · view progress"); assert(game.state=="missions")
+ game.save.data=game.save.defaults(); game.show_menu("title")
+ var background_tap: InputEventScreenTouch=InputEventScreenTouch.new(); background_tap.position=Vector2(360,650); background_tap.pressed=true
+ game._unhandled_input(background_tap); assert(game.state=="title","Background taps must not start a ride")
+ for child: Node in game.title_ui.get_children():
+  if child is Button: assert(child.size.y>=84,"Menu action touch target too short")
+ var found: bool=false
+ for child: Node in game.title_ui.get_children():
+  if child is Label and child.text=="First ride": found=true
+ assert(found,"First ride must be a plain label")
+ press("Missions · 0/3"); assert(game.state=="missions")
  for b: Node in game.panel.get_children():
   if b is Button and b.text=="Close": b.pressed.emit(); break
  assert(game.state=="title")

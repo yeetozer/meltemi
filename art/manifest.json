@@ -10,26 +10,6 @@
     "h": 72
   },
   {
-    "file": "sprites/kite_sunset.png",
-    "w": 140,
-    "h": 70
-  },
-  {
-    "file": "sprites/kite_seaglass.png",
-    "w": 140,
-    "h": 70
-  },
-  {
-    "file": "sprites/kite_olive.png",
-    "w": 140,
-    "h": 70
-  },
-  {
-    "file": "sprites/kite_lemon.png",
-    "w": 140,
-    "h": 70
-  },
-  {
     "file": "sprites/buoy.png",
     "w": 40,
     "h": 40
@@ -98,11 +78,6 @@
     "file": "sprites/splash.png",
     "w": 96,
     "h": 96
-  },
-  {
-    "file": "sprites/spray.png",
-    "w": 16,
-    "h": 16
   },
   {
     "file": "sprites/sparkle.png",
@@ -183,5 +158,50 @@
     "file": "ui/icon.png",
     "w": 1024,
     "h": 1024
+  },
+  {
+    "file": "sprites/board_classic.png",
+    "w": 116,
+    "h": 173
+  },
+  {
+    "file": "sprites/board_seaglass.png",
+    "w": 116,
+    "h": 173
+  },
+  {
+    "file": "sprites/rider_navy.png",
+    "w": 288,
+    "h": 288
+  },
+  {
+    "file": "sprites/rider_terra.png",
+    "w": 288,
+    "h": 288
+  },
+  {
+    "file": "sprites/spray.png",
+    "w": 52,
+    "h": 52
+  },
+  {
+    "file": "sprites/kite_sunset.png",
+    "w": 140,
+    "h": 70
+  },
+  {
+    "file": "sprites/kite_seaglass.png",
+    "w": 140,
+    "h": 70
+  },
+  {
+    "file": "sprites/kite_olive.png",
+    "w": 140,
+    "h": 70
+  },
+  {
+    "file": "sprites/kite_lemon.png",
+    "w": 140,
+    "h": 70
   }
 ]

@@ -26,7 +26,7 @@ def raster(text,file,w,h):
  b=text.encode(); handle=new(b,len(b),None); assert handle
  s=surface(0,w,h); c=context(s);assert render(handle,c);assert write(s,str(file).encode())==0;dc(c);ds(s);unref(handle)
 def add(name,w,h,b,folder='sprites'):
- text=svg(w,h,b); (SRC/(name+'.svg')).write_text(text); dest=OUT/folder/(name+'.png');raster(text,dest,w,h);assets.append(dict(file=str(dest.relative_to(OUT)),w=w,h=h,body=b))
+ text=svg(w,h,b); source=SRC/(name+'.svg'); text=source.read_text() if name in ['spray','kite_sunset','kite_seaglass','kite_olive','kite_lemon'] else text; source.write_text(text); dest=OUT/folder/(name+'.png');raster(text,dest,w,h);assets.append(dict(file=str(dest.relative_to(OUT)),w=w,h=h,body=b))
 # Thin vertical twin-tip; asymmetric heel-side lean, separated knees and hands.
 board=path('M47 6 Q51 2 55 6 L55 64 Q51 69 47 64Z',deep,cream,1)+line('M49 9 L49 61',sea,1.5)+rect(47,20,8,5,cream,2)+rect(47,47,8,5,cream,2)+line('M48 13 L54 13 M48 57 L54 57',terra,3)
 rider=board+line('M50 22 L36 19 L26 30 M50 49 L36 46 L26 38',sand,4)+line('M48 22 L52 22 M48 49 L52 49',deep,2)+path('M17 25 Q24 22 29 29 L30 38 L19 42 L14 33Z',deep)+path('M18 26 L25 25 L28 33 L18 36Z',sea)+line('M20 39 L28 37',terra,3)+line('M16 29 L12 29',sand,5)+line('M22 26 L28 16 M28 34 L35 23',terra,4)+line('M28 16 L35 20 M35 23 L47 20',sand,2.8)+line('M35 17 L59 17',deep,6)+line('M35 17 L59 17',cream,3)+line('M54 17 L59 17',terra,3)+ellipse(10,29,7,7,sand)+ellipse(9,27,6.5,6.5,lemon)+path('M4 26 Q8 21 13 25','none',cream,1.6)
@@ -133,6 +133,18 @@ b+=line('M122 224 Q300 248 478 224',terra,6)
 add('logo',600,260,b,'ui')
 icon=rect(0,0,1024,1024,sea)+ellipse(300,230,600,600,cream)+path('M0 650 Q256 470 512 650 T1024 650 V1024 H0Z','#4FB3BF')+path('M0 730 Q256 550 512 730 T1024 730','none','#FFFFFF',24)+'<g transform="translate(122 185) scale(5.6)">'+assets[2]['body']+'</g>'+line('M330 510 Q350 670 480 750 M705 510 Q670 680 480 750',deep,8)+path('M390 821 Q485 777 592 821 Q485 862 390 821Z',terra)
 add('icon',1024,1024,icon,'ui')
+# Approved immutable layered sources; never regenerate their artwork.
+import re
+for name in ['board_classic','board_seaglass','rider_navy','rider_terra','spray','kite_sunset','kite_seaglass','kite_olive','kite_lemon']:
+ text=(SRC/(name+'.svg')).read_text()
+ w,h=[float(re.search(key+r'="([0-9.]+)',text).group(1)) for key in ['width','height']]
+ dest=OUT/'sprites'/(name+'.png')
+ factor=4 if name in ['board_classic','board_seaglass','rider_navy','rider_terra','spray'] else 1
+ text=re.sub(r'width="[0-9.]+', 'width="'+str(w*factor), text, count=1)
+ text=re.sub(r'height="[0-9.]+', 'height="'+str(h*factor), text, count=1)
+ raster(text,dest,math.ceil(w*factor),math.ceil(h*factor))
+ assets=[a for a in assets if a['file']!='sprites/'+name+'.png']
+ assets.append(dict(file='sprites/'+name+'.png',w=math.ceil(w*factor),h=math.ceil(h*factor),body=''))
 # All sprites at exact 1x on both mandated backgrounds. Large icon has its own 1x row.
 rows=[]; y=35
 for a in assets:

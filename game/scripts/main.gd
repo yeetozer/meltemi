@@ -75,7 +75,8 @@ var lines: Array[Line2D] = []
 var spray: CPUParticles2D
 var ambient: AudioStreamPlayer
 var world: Node2D
-var rider: Sprite2D
+var rider_visual: Node2D
+var rider: Node2D
 var kite: Sprite2D
 var shadow: Polygon2D
 var safe_top: float = 64
@@ -116,15 +117,11 @@ func _ready() -> void:
  var oval: PackedVector2Array = PackedVector2Array()
  for j in range(24): oval.append(Vector2(cos(float(j)*TAU/24)*25,sin(float(j)*TAU/24)*36))
  shadow.polygon=oval; shadow.color=Color(0.169,0.169,0.169,0.25); world.add_child(shadow)
- for i in range(2):
-  var line: Line2D = Line2D.new(); line.width=1.5; line.default_color=Color(0.15,0.25,0.25,0.7); world.add_child(line); lines.append(line)
- rider = Sprite2D.new(); if not save.data.reduce_motion:
-  rider.rotation+=sin(turn_juice/0.22*PI)*0.22*run.tack
-  rider.skew=sin(turn_juice/0.22*PI)*0.12*run.tack
-  if landing_juice>0.18: rider.scale*=Vector2(1.2,0.8)
- if run.flip>0: rider.scale.y*=cos(run.flip*TAU); rider.position.y-=sin(run.flip*PI)*15
- if run.grabbing: rider.scale*=1.08; rider.rotation+=0.2
- rider.texture=AssetLib.texture("sprites/rider.png",Vector2(72,72)); world.add_child(rider)
+ for i in range(4):
+  var line: Line2D = Line2D.new(); line.width=1.7; line.default_color=Color(0.133,0.22,0.29,0.88); world.add_child(line); lines.append(line)
+ rider=Node2D.new(); world.add_child(rider)
+ rider_visual=preload("res://scripts/rider_visual.gd").new(); rider.add_child(rider_visual)
+ rider_visual.set_skins(save.data.selected_board,save.data.selected_character)
  kite = Sprite2D.new(); kite.position=Vector2(470,790); world.add_child(kite)
  spray=CPUParticles2D.new(); spray.amount=42; spray.lifetime=0.4; spray.one_shot=true; spray.explosiveness=0.9; spray.direction=Vector2(0,1); spray.spread=65; spray.initial_velocity_min=70; spray.initial_velocity_max=160; spray.gravity=Vector2(0,80); spray.scale_amount_min=2; spray.scale_amount_max=5; spray.emitting=false; world.add_child(spray)
  var canvas: CanvasLayer = CanvasLayer.new(); add_child(canvas)
@@ -138,15 +135,20 @@ func _ready() -> void:
  ambient=AudioStreamPlayer.new(); ambient.stream=AssetLib.sound("amb_ocean"); ambient.volume_db=-16; add_child(ambient); ambient.finished.connect(func() -> void: ambient.play()); ambient.play()
  if OS.has_feature("editor"):
   snap=parse_capture_args(OS.get_cmdline_user_args(),true)
+  if snap!="":
+   get_window().content_scale_size=Vector2i(720,1561); get_window().size=Vector2i(1179,2556)
+   save.data=save.defaults()
  if OS.has_feature("web"):
   web_debug=str(JavaScriptBridge.eval("location.search")).contains("debug=1")
  show_menu("title")
  if OS.has_feature("editor") and snap in ["settings","missions"]: show_menu(snap)
+ if OS.has_feature("editor") and snap=="first_launch":
+  save.data=save.defaults(); show_menu("title")
  if OS.has_feature("editor") and snap=="returning":
-  save.data.best=1240; save.data.shells=83; save.data.xp=145; show_menu("title")
+  save.data.best=1240; save.data.shells=83; save.data.xp=145; save.data.missions.next=4; show_menu("title")
  if OS.has_feature("editor") and snap=="shop": show_menu("shop")
  if OS.has_feature("editor") and snap=="pause": start(); show_menu("pause")
- if OS.has_feature("editor") and snap in ["riding","airborne","game_over","airborne_flip","airborne_grab","landing","game_over_daily"]:
+ if OS.has_feature("editor") and snap in ["riding","left_carve","right_carve","airborne","game_over","airborne_flip","airborne_grab","landing","game_over_daily"]:
   start()
   if OS.has_feature("editor") and snap=="game_over_daily": daily=true
   if OS.has_feature("editor") and snap=="riding": run.combo=3; save.data.tutorial_done=false
@@ -193,6 +195,7 @@ func show_menu(which: String) -> void:
   for i in range(4):
    var name_: String=names[i]; var cost: int=costs[i]
    button(name_.capitalize()+ ("  ✓" if save.data.selected==name_ else "  ·  "+("Owned" if name_ in save.data.owned else str(cost)+" shells")),func() -> void: save.buy(name_,cost); show_menu("shop"))
+   var preview: Button=panel.get_child(-1) as Button; preview.icon=AssetLib.texture("sprites/kite_"+name_+".png",Vector2(140,70)); preview.icon_alignment=HORIZONTAL_ALIGNMENT_LEFT; preview.expand_icon=true; preview.add_theme_constant_override("icon_max_width",110); preview.custom_minimum_size.y=88
   button("Home",func() -> void: show_menu("title"))
 func start() -> void:
  if is_instance_valid(title_ui): title_ui.queue_free()
@@ -380,21 +383,27 @@ func _process(dt: float) -> void:
  var center_: Vector2=Vector2(360,height*0.5)
  var shake_: Vector2=Vector2(sin(clock*93),cos(clock*77))*5 if state=="crash" and not save.data.reduce_motion else Vector2.ZERO
  get_viewport().canvas_transform=Transform2D(Vector2(zoom_,0),Vector2(0,zoom_),center_*(1-zoom_)+shake_)
+ if OS.has_feature("editor") and snap in ["left_carve","right_carve"]:
+  run.lateral_velocity=-318 if snap=="left_carve" else 318; run.visual_heading=-0.42 if snap=="left_carve" else 0.42
+  rider_visual.side=-1 if snap=="left_carve" else 1; rider_visual.scale.x=rider_visual.side; rider_visual.carve=1
  var scale_: float=1+air_height*0.6 if not save.data.reduce_motion else 1
  var menu_time: float=0.0 if save.data.reduce_motion else clock
  var pos: Vector2=Vector2(run.x,rider_y()) if state in ["play","crash"] else Vector2(360+sin(menu_time*0.45)*100,height*0.49)
  rider.position=pos+Vector2(0,-air_height*60); rider.scale=Vector2.ONE*scale_*1.5; rider.rotation=run.visual_heading+(run.spin*TAU if run.air>0 else 0)
- rider.texture=AssetLib.texture("sprites/rider_wipeout.png" if run.dead else "sprites/rider.png",Vector2(72,72))
- kite.texture=AssetLib.texture("sprites/kite_"+str(save.data.selected)+".png",Vector2(140,70)); kite.position=kite.position.lerp(pos+Vector2(sin(run.heading)*170,-190-air_height*90),minf(dt/0.35,1)); kite.scale=Vector2.ONE*scale_*1.2; kite.rotation=-run.heading*0.25
+ rider_visual.update_pose(dt,run.lateral_velocity if state!="title" else sin(menu_time*0.45)*220,save.data.reduce_motion,run.flip,run.grabbing)
+ rider_visual.spray_sprite.visible=run.air<=0
+ if state=="title" and save.data.reduce_motion: rider_visual.solve(0)
+ kite.texture=AssetLib.texture("sprites/kite_"+str(save.data.selected)+".png",Vector2(140,70)); kite.position=kite.position.lerp(pos+Vector2(sin(run.heading)*170,-190-air_height*90),minf(dt/0.35,1)); kite.scale=Vector2.ONE*scale_*1.45; kite.rotation=-run.heading*0.25
  if state=="title":
   rider.scale=Vector2.ONE*3; rider.rotation=sin(menu_time*0.45)*0.22
   kite.scale=Vector2.ONE*2.4; kite.position=pos+Vector2(60+sin(menu_time*0.6)*35,-245); kite.rotation=sin(menu_time*0.6)*0.08
   wake.clear_points()
+  var tail: Vector2=world.to_local(rider_visual.to_global(Vector2(0,18.72).rotated(rider_visual.board.rotation)))
   for j in range(24):
-   var age: float=float(j)/23.0
-   wake.add_point(pos+Vector2(sin(menu_time*0.45-age)*70-sin(menu_time*0.45)*70,160*(1-age)+40))
+   var age: float=1.0-float(j)/23.0
+   wake.add_point(tail+Vector2((sin(menu_time*0.45-age)-sin(menu_time*0.45))*70,160*age))
  shadow.position=pos+LIGHT_OFFSET*(1+air_height*2); shadow.scale=Vector2(0.65,0.65)*(1-air_height*0.35); shadow.color.a=0.13-air_height*0.04
- for i in range(2): lines[i].points=PackedVector2Array([rider.to_global(Vector2(-1+i*24,-19)),kite.position+Vector2((i*2-1)*62,23).rotated(kite.rotation)*kite.scale.x])
+ for i in range(4): lines[i].points=PackedVector2Array([world.to_local(rider_visual.bar_point(i)),world.to_local(kite.to_global([Vector2(-53.2,31.5),Vector2(53.2,31.5),Vector2(-28.6,1.31),Vector2(28.6,1.31)][i]))])
  queue_redraw()
  if web_debug:
   JavaScriptBridge.eval("window.__meltemi=%s" % JSON.stringify({"state":state,"tack":run.tack,"held":run.held,"steering":run.steering,"target_x":run.target_x,"heading":snappedf(run.heading,0.001),"x":snappedf(run.x,0.1),"raw":raw_touches,"unhandled":unhandled_touches,"actions":actions,"dead":run.dead,"trick":("flip" if run.flip>0 else "spin" if run.spin>0 else "none"),"grab":run.grabbing,"missions":save.data.missions}))
@@ -455,13 +464,6 @@ func _draw() -> void:
    draw_line(origin,tip,foam,2.5,true)
    draw_line(tip,tip-course.rotated(0.55)*12,foam,2.5,true)
    draw_line(tip,tip-course.rotated(-0.55)*12,foam,2.5,true)
-  if run.air<=0 and not run.dead:
-   var heel: Vector2=Vector2(run.x,rider_y())
-   for j in range(5):
-    var fade_: float=1.0-float(j)/5
-    var tip_: Vector2=heel+Vector2(-14-j*5,18+j*10).rotated(run.heading)
-    draw_circle(tip_,4+float(j),Color(1,1,1,fade_*0.52))
-    draw_line(tip_,tip_+Vector2(-9,8).rotated(run.heading),Color(1,1,1,fade_*0.6),2,true)
   for obj: Dictionary in objects:
    var size_: Vector2=obj.size
    var pickup: bool=obj.kind in ["shell","starfish","gust"]
@@ -526,21 +528,30 @@ func _draw() -> void:
  if toast_time>0: draw_string(font,Vector2(130,safe_top+180),toast,HORIZONTAL_ALIGNMENT_LEFT,470,22,Color.WHITE)
 
 func build_title() -> void:
+ var safe: Rect2i=DisplayServer.get_display_safe_area()
+ safe_top=maxf(64,float(safe.position.y)*720.0/maxf(1,DisplayServer.screen_get_size().x)) if not OS.has_feature("headless") else 64
  panel.hide()
  title_ui=Control.new(); title_ui.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT); title_ui.mouse_filter=Control.MOUSE_FILTER_IGNORE; ui.add_child(title_ui)
  var height: float=get_viewport_rect().size.y
  for entry: Array in [["MELTEMI",48,110],["Chase the wind",22,174]]:
   var word: Label=Label.new(); word.text=entry[0]; word.position=Vector2(150,entry[2]); word.size=Vector2(420,64); word.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER; word.add_theme_font_size_override("font_size",entry[1]); word.add_theme_color_override("font_color",Color("183e49")); title_ui.add_child(word)
- title_button("⚙",Vector2(594,100),Vector2(88,88),func() -> void: show_menu("settings"))
+ title_button("⚙",Vector2(500,maxf(safe_top,90)),Vector2(88,88),func() -> void: show_menu("settings"))
  title_button("First ride" if int(save.data.best)==0 else "Best  %s" % save.data.best,Vector2(140,238),Vector2(230,52),Callable(),false)
- if int(save.data.shells)>0: title_button("Shells  %s" % save.data.shells,Vector2(384,238),Vector2(196,52),Callable(),false)
- if int(save.data.xp)>0: title_button("Lv %d · %d/100 XP" % [Missions.level(int(save.data.xp)),int(save.data.xp)%100],Vector2(210,300),Vector2(300,48),Callable(),false)
- title_button("3 missions · view progress",Vector2(140,height-390),Vector2(440,56),func() -> void: show_menu("missions"))
+ title_button("%s" % save.data.shells,Vector2(420,238),Vector2(130,52),Callable(),false)
+ var icon: TextureRect=TextureRect.new(); icon.texture=AssetLib.texture("ui/icon_shell.png"); icon.position=Vector2(390,248); icon.size=Vector2(32,32); icon.expand_mode=TextureRect.EXPAND_IGNORE_SIZE; icon.mouse_filter=Control.MOUSE_FILTER_IGNORE; title_ui.add_child(icon)
+ title_button("Lv %d · %d/100 XP" % [Missions.level(int(save.data.xp)),int(save.data.xp)%100],Vector2(210,300),Vector2(300,48),Callable(),false)
+ var xp: ProgressBar=ProgressBar.new(); xp.position=Vector2(210,350); xp.size=Vector2(300,7); xp.show_percentage=false; xp.value=int(save.data.xp)%100; xp.mouse_filter=Control.MOUSE_FILTER_IGNORE
+ var track: StyleBoxFlat=StyleBoxFlat.new(); track.bg_color=Color("398f9f"); xp.add_theme_stylebox_override("background",track)
+ var fill: StyleBoxFlat=StyleBoxFlat.new(); fill.bg_color=Color("f4ebdd"); xp.add_theme_stylebox_override("fill",fill); title_ui.add_child(xp)
+ title_button("Missions · %d/3" % ((int(save.data.missions.next)-3)%3),Vector2(120,height-414),Vector2(480,84),func() -> void: show_menu("missions"))
  title_button("Ride",Vector2(120,height-310),Vector2(480,104),func() -> void: daily=false; start())
  title_button("Daily",Vector2(120,height-186),Vector2(230,84),daily_start)
  title_button("Kites",Vector2(370,height-186),Vector2(230,84),func() -> void: show_menu("shop"))
 
 func title_button(text: String, at: Vector2, dimensions: Vector2, action: Callable, interactive: bool=true) -> void:
+ if not interactive:
+  var label: Label=Label.new(); label.text=text; label.position=at; label.size=dimensions; label.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER; label.vertical_alignment=VERTICAL_ALIGNMENT_CENTER; label.add_theme_font_size_override("font_size",22); label.add_theme_color_override("font_color",Color("183e49")); label.mouse_filter=Control.MOUSE_FILTER_IGNORE; title_ui.add_child(label)
+  return
  var b: Button=Button.new(); b.text=text; b.position=at; b.size=dimensions; b.add_theme_font_size_override("font_size",34 if text=="Ride" else 22); b.mouse_filter=Control.MOUSE_FILTER_STOP
  var style: StyleBoxFlat=StyleBoxFlat.new(); style.bg_color=Color("aa4c2c") if text=="Ride" else Color("f4ebdd"); style.set_corner_radius_all(22); b.add_theme_stylebox_override("normal",style); b.add_theme_color_override("font_color",Color("ffffff") if text=="Ride" else Color("183e49"))
  if interactive: b.pressed.connect(action)
