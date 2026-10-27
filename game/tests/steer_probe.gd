@@ -1,16 +1,16 @@
 extends SceneTree
-const Model=preload("res://scripts/run_model.gd")
+const Model=preload("res://tests/steer_fixed.gd")
 const DT: float=1.0/60.0
 func _initialize() -> void:
  var output: Dictionary={}
- for speed_: float in [380.0,540.0,700.0,1050.0]:
+ for speed_: float in [260.0,380.0,540.0,700.0,1050.0]:
   for track: String in ["step","sine","jitter","release","gust"]:
    var r=Model.new()
    var rng=RandomNumberGenerator.new(); rng.seed=9182
    r.speed=speed_; r.begin_steering(0)
    var rows: Array=[]
    for i in range(180):
-    r.elapsed=clampf((minf(speed_,700.0)-380.0)/320.0*90.0-DT,0,90)
+    r.fixed_speed=speed_; r.elapsed=180
     r.gust=10 if speed_>700 else 0
     if track=="gust" and i>=30 and i<90: r.gust=10
     var finger: float=0

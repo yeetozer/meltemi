@@ -91,6 +91,12 @@ func _exit_tree() -> void:
  if is_instance_valid(ambient):
   ambient.stop()
   ambient.stream=null
+static func parse_capture_args(args: PackedStringArray, editor_allowed: bool) -> String:
+ if not OS.has_feature("editor") or not editor_allowed: return ""
+ var mode: String=""
+ for arg: String in args:
+  if arg.begins_with("--capture="): mode=arg.trim_prefix("--capture=")
+ return mode
 func _ready() -> void:
  Engine.max_fps = 60
  Input.emulate_touch_from_mouse = not DisplayServer.is_touchscreen_available()
@@ -129,19 +135,19 @@ func _ready() -> void:
  pause_button=Button.new(); pause_button.text="Pause";  pause_button.expand_icon=true; pause_button.custom_minimum_size=Vector2(100,64); pause_button.pressed.connect(func() -> void: show_menu("pause")); ui.add_child(pause_button)
  hint=Label.new(); hint.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER; hint.add_theme_font_size_override("font_size",22); ui.add_child(hint)
  ambient=AudioStreamPlayer.new(); ambient.stream=AssetLib.sound("amb_ocean"); ambient.volume_db=-16; add_child(ambient); ambient.finished.connect(func() -> void: ambient.play()); ambient.play()
- for arg: String in OS.get_cmdline_user_args():
-  if arg.begins_with("--capture="): snap=arg.trim_prefix("--capture=")
+ if OS.has_feature("editor"):
+  snap=parse_capture_args(OS.get_cmdline_user_args(),true)
  if OS.has_feature("web"):
   web_debug=str(JavaScriptBridge.eval("location.search")).contains("debug=1")
  show_menu("title")
- if snap=="shop": show_menu("shop")
- if snap=="pause": start(); show_menu("pause")
- if snap in ["riding","airborne","game_over","airborne_flip","airborne_grab","landing","game_over_daily"]:
+ if OS.has_feature("editor") and snap=="shop": show_menu("shop")
+ if OS.has_feature("editor") and snap=="pause": start(); show_menu("pause")
+ if OS.has_feature("editor") and snap in ["riding","airborne","game_over","airborne_flip","airborne_grab","landing","game_over_daily"]:
   start()
-  if snap=="game_over_daily": daily=true
-  if snap=="riding": run.combo=3; save.data.tutorial_done=false
-  if snap=="airborne": run.launch(true); run.air=1.1; run.spin=0.35
-  if snap in ["game_over","game_over_daily"]: run.crash("A spectacular splash"); finish()
+  if OS.has_feature("editor") and snap=="game_over_daily": daily=true
+  if OS.has_feature("editor") and snap=="riding": run.combo=3; save.data.tutorial_done=false
+  if OS.has_feature("editor") and snap=="airborne": run.launch(true); run.air=1.1; run.spin=0.35
+  if OS.has_feature("editor") and snap in ["game_over","game_over_daily"]: run.crash("A spectacular splash"); finish()
 func audio(name_: String) -> void:
  if not save.data.sound: return
  var player: AudioStreamPlayer=AudioStreamPlayer.new(); player.stream=AssetLib.sound("sfx_"+name_); player.pitch_scale=1.0+0.05*(run.combo-1); add_child(player); player.finished.connect(player.queue_free); player.play()
@@ -188,8 +194,7 @@ func start() -> void:
  var date: Dictionary=Time.get_date_dict_from_system()
  daily_date=Missions.date_key(date); course_seed=Missions.daily_seed(date) if daily else 81273
  run=Model.new(); objects.clear(); chunk_index=0; next_chunk=0; wake.clear_points(); crash_timer=0; state="play"; panel.hide(); clear_panel(); hud.show();  spin_hint=false
- for entry: Array in [["wave",360.0, rider_y()-500],["shell",320.0,rider_y()-660],["shell",360.0,rider_y()-740],["buoy",500.0,rider_y()-850]]:
-  objects.append({"kind":entry[0],"x":entry[1],"y":entry[2],"size":Chunks.SIZES[entry[0]],"move":false})
+ # The course owns the opening too; retries always retain the full calm warm-up.
 func resume() -> void:
  state="play"; clear_panel(); panel.hide(); hud.show()
 func clear_controls() -> void:
@@ -293,7 +298,7 @@ func _process(dt: float) -> void:
   if next_chunk<=0:
    var chunk: Dictionary=maker.chunk(course_seed,chunk_index)
    for obj: Dictionary in chunk.objects:
-    obj.y+=next_chunk-120; objects.append(obj)
+    obj.y+=next_chunk+rider_y()-Chunks.SPAWN_LEAD; objects.append(obj)
    next_chunk+=1280; chunk_index+=1
   for obj: Dictionary in objects:
    var old_y: float=float(obj.y)
@@ -302,7 +307,9 @@ func _process(dt: float) -> void:
     var dx: float=absf(float(obj.x)-run.x)
     if dx>float(obj.size.x)*0.5+20 and dx<float(obj.size.x)*0.5+50 and not obj.get("near",false):
      obj.near=true
-     if run.near_miss(int(obj.get("id",obj.hash()))): popup("CLOSE! +25")
+     var near_id: int=int(obj.get("id",obj.hash()))
+     obj.near_id=near_id
+     if run.near_miss(near_id): popup("CLOSE! +25")
    if obj.move:
     obj.x=float(obj.base)+sin(clock*0.9+float(obj.phase))*18.0
    var radius: Vector2=obj.size*0.5+Vector2(20,20)
@@ -312,7 +319,10 @@ func _process(dt: float) -> void:
     obj.used=true; run.collide(kind)
     if kind in ["shell","starfish"]: audio("shell")
     elif kind=="gust": audio("gust")
-  objects=objects.filter(func(o: Dictionary) -> bool: return float(o.y)<height+200 and not o.get("used",false))
+  objects=objects.filter(func(o: Dictionary) -> bool:
+   var keep: bool=float(o.y)<height+200 and not o.get("used",false)
+   if not keep and o.has("near_id"): run.near_ids.erase(int(o.near_id))
+   return keep)
   if before_air<=0 and run.air>0:
    apex_done=false
    if run.golden and not save.data.reduce_motion: flash=0.12
@@ -336,6 +346,7 @@ func _process(dt: float) -> void:
   while wake.get_point_count()>15: wake.remove_point(0)
   hud.text="%s    ·    %s pts%s" % [run.shells,run.trick_points+run.shells*10,("    x%s" % run.combo) if run.combo>1 else ""]
   hint.text=("Tap in the air to spin!" if spin_hint else "Drag to steer · lift to keep your line") if not save.data.tutorial_done else ("SHALLOWS — TURN!" if run.x<132 or run.x>588 else "")
+  if run.elapsed<Model.Pacing.WARMUP: hint.text="Drag to steer · lift to keep your line"
   run_spins+=float(run.events.get("spins",0))
   run.events.distance=run.distance; run.events.run_spins=run_spins; run.events.run_shells=run.shells
   var completed: Array=Missions.update(save.data,run.events)
@@ -353,11 +364,11 @@ func _process(dt: float) -> void:
  else:
   panel.position=Vector2(150,maxf(safe_top+24,height*0.08)); panel.size=Vector2(420,0)
  var air_height: float=sin(PI*run.air/maxf(run.air_total,0.01)) if run.air>0 else 0
- if snap in ["airborne","airborne_flip","airborne_grab"]:
+ if OS.has_feature("editor") and snap in ["airborne","airborne_flip","airborne_grab"]:
   run.air=run.air_total*0.5; run.spin=0.3; air_height=1; spin_hint=true; hint.text="Tap in the air to spin!"
- if snap=="airborne_flip": run.flip=0.35; run.spin=0; hint.text="BACKFLIP"
- if snap=="airborne_grab": run.grabbing=true; run.spin=0; hint.text="GRAB — release before landing"
- if snap=="landing": landing_juice=0.23; run.perfect=true; popup("PERFECT") if popups.is_empty() else null
+ if OS.has_feature("editor") and snap=="airborne_flip": run.flip=0.35; run.spin=0; hint.text="BACKFLIP"
+ if OS.has_feature("editor") and snap=="airborne_grab": run.grabbing=true; run.spin=0; hint.text="GRAB — release before landing"
+ if OS.has_feature("editor") and snap=="landing": landing_juice=0.23; run.perfect=true; popup("PERFECT") if popups.is_empty() else null
  var zoom_: float=1.0-0.035*air_height if not save.data.reduce_motion else 1.0
  var center_: Vector2=Vector2(360,height*0.5)
  var shake_: Vector2=Vector2(sin(clock*93),cos(clock*77))*5 if state=="crash" and not save.data.reduce_motion else Vector2.ZERO
@@ -372,7 +383,7 @@ func _process(dt: float) -> void:
  queue_redraw()
  if web_debug:
   JavaScriptBridge.eval("window.__meltemi=%s" % JSON.stringify({"state":state,"tack":run.tack,"held":run.held,"steering":run.steering,"target_x":run.target_x,"heading":snappedf(run.heading,0.001),"x":snappedf(run.x,0.1),"raw":raw_touches,"unhandled":unhandled_touches,"actions":actions,"dead":run.dead,"trick":("flip" if run.flip>0 else "spin" if run.spin>0 else "none"),"grab":run.grabbing,"missions":save.data.missions}))
- if snap!="" and not capture_done:
+ if OS.has_feature("editor") and snap!="" and not capture_done:
   snap_frames+=1
   if snap_frames==8: capture()
 func finish() -> void:
@@ -381,6 +392,7 @@ func finish() -> void:
  new_best=run.score()>int(save.data.best); save.data.best=maxi(run.score(),int(save.data.best)); save.data.shells=int(save.data.shells)+run.shells; save.write_save(); show_menu("over")
  if new_best: audio("newbest")
 func capture() -> void:
+ if not OS.has_feature("editor"): return
  capture_done=true
  await RenderingServer.frame_post_draw
  var image: Image=get_viewport().get_texture().get_image()
@@ -416,7 +428,7 @@ func _draw() -> void:
  if state in ["play","crash"]:
   if not run.dead:
    # Projected course sits ahead of the board; wake stays behind it.
-   var course: Vector2=Vector2(sin(run.heading),-cos(run.heading))
+   var course: Vector2=Vector2(sin(run.visual_heading),-cos(run.visual_heading))
    var origin: Vector2=Vector2(run.x,rider_y())+course*48
    var tip: Vector2=origin+course*76
    var clearance: float=1.0

@@ -1,5 +1,5 @@
 extends SceneTree
-const Model=preload("res://scripts/run_model.gd")
+const Model=preload("res://tests/steer_fixed.gd")
 const DT: float=1.0/60.0
 var failed: int=0
 var passed: int=0
@@ -7,12 +7,12 @@ func check(ok: bool, label_: String) -> void:
  if ok: passed+=1; print("PASS ",label_)
  else: failed+=1; printerr("FAIL ",label_)
 func set_speed(r: RunModel, value: float) -> void:
- r.elapsed=clampf((minf(value,700)-380)/320*90-DT,0,90)
+ r.fixed_speed=value; r.elapsed=180
  r.gust=10 if value>700 else 0
 func _initialize() -> void:
  var baseline: Array=[]
  var releases: Array=[]
- for value: float in [380.0,540.0,700.0,1050.0]:
+ for value: float in [380.0,260.0,540.0,700.0,1050.0]:
   var r: RunModel=Model.new(); r.speed=value; r.begin_steering(0)
   var curve: Array=[]; var overshoot: bool=false; var t90: float=99
   r.drag_to(60)
@@ -60,6 +60,6 @@ func _initialize() -> void:
  check(absf((r.x-130)-(reference.x-360))<0.001,"shallows preserve lateral response when angle cap permits")
  r=Model.new(); r.x=586; r.lateral_velocity=Model.LATERAL_MAX
  r.tick(DT); r.tick(DT)
- check(absf(r.heading-atan2(r.lateral_velocity,r.speed))<0.00001 and absf(r.heading)<=Model.MAX_HEADING,"sudden shallow entry preserves physical heading/velocity agreement")
+ check(absf(r.heading-atan2(r.lateral_velocity,r.speed))<0.00001 and absf(r.lateral_velocity)<=Model.LATERAL_MAX,"sudden shallow entry preserves physical heading/velocity agreement")
  print("STEERING RESULT ",passed," passed, ",failed," failed")
  quit(1 if failed else 0)

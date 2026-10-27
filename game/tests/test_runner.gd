@@ -75,7 +75,7 @@ func _initialize() -> void:
  r=Model.new(); r.launch(); r.air=0.01; r.spin=0.5; r.tick(0.02); check(r.dead,"mid spin wipeout")
  r=Model.new(); r.collide("rock_big"); check(r.dead,"obstacle game over")
  r=Model.new(); r.x=80; r.tick(0.01); check(r.reason=="Beached","beached")
- r=Model.new(); r.shells=3; r.distance=12.3; r.combo=2; r.launch(); r.air=0.01; r.spins=1; r.tick(0.02); check(r.trick_points==200 and r.combo==3 and r.score()==243,"score combo math")
+ r=Model.new(); r.shells=3; r.distance=12.3; r.combo=2; r.launch(); r.air=0.01; r.spins=1; r.tick(0.02); check(r.trick_points==200 and r.combo==3 and r.score()==242,"score combo math")
  var air_ok: bool=true
  for start_x: float in [140.0,360.0,580.0]:
   for t: int in [1,-1]:

@@ -94,6 +94,17 @@ func go() -> void:
   background_ok=background_ok and game.state=="pause" and not game.run.held and not game.key_right and game.gameplay_touches.is_empty() and game.touch_id==-1
  print("INPUT focus loss/application pause clears holds: ",background_ok)
  ok=ok and cancellation_ok and background_ok
+ game.start(); game.next_chunk=10000
+ game.objects.assign([{"kind":"buoy","x":game.run.x+65,"y":game.rider_y()-1,"size":Vector2(40,40),"base":game.run.x+65,"phase":0.0,"move":false}])
+ game._process(1.0/60)
+ var near_ok: bool=game.run.trick_points==25 and game.run.near_ids.size()==1
+ game._process(1.0/60)
+ near_ok=near_ok and game.run.trick_points==25
+ game.objects[0].y=game.get_viewport_rect().size.y+201
+ game._process(1.0/60)
+ near_ok=near_ok and game.run.near_ids.is_empty() and game.run.trick_points==25
+ print("NEAR one award, culled ids pruned: ",near_ok)
+ ok=ok and near_ok
  game.ambient.stream_paused=false
  game.ambient.stop()
  game.ambient.stream=null
