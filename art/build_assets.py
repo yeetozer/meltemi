@@ -29,7 +29,7 @@ def add(name,w,h,b,folder='sprites'):
  text=svg(w,h,b); (SRC/(name+'.svg')).write_text(text); dest=OUT/folder/(name+'.png');raster(text,dest,w,h);assets.append(dict(file=str(dest.relative_to(OUT)),w=w,h=h,body=b))
 # Thin vertical twin-tip; asymmetric heel-side lean, separated knees and hands.
 board=path('M47 6 Q51 2 55 6 L55 64 Q51 69 47 64Z',deep,cream,1)+line('M49 9 L49 61',sea,1.5)+rect(47,20,8,5,cream,2)+rect(47,47,8,5,cream,2)+line('M48 13 L54 13 M48 57 L54 57',terra,3)
-rider=board+line('M50 22 L36 19 L26 30 M50 49 L35 50 L26 38',sand,4)+line('M50 22 L46 22 M50 49 L46 49',deep,3)+path('M17 25 Q24 22 29 29 L30 38 L19 42 L14 33Z',deep)+path('M18 26 L25 25 L28 33 L18 36Z',sea)+line('M20 39 L28 37',terra,3)+line('M22 26 L38 11 L59 18 M28 34 L43 37 L59 30',sand,3.5)+line('M59 12 L59 36',deep,4)+line('M59 12 L59 22',cream,3)+line('M59 27 L59 36',terra,3)+ellipse(10,29,7,7,sand)+ellipse(9,27,6.5,6.5,lemon)+path('M4 26 Q8 21 13 25','none',cream,1.6)
+rider=board+line('M50 22 L36 19 L26 30 M50 49 L36 46 L26 38',sand,4)+line('M48 22 L52 22 M48 49 L52 49',deep,2)+path('M17 25 Q24 22 29 29 L30 38 L19 42 L14 33Z',deep)+path('M18 26 L25 25 L28 33 L18 36Z',sea)+line('M20 39 L28 37',terra,3)+line('M16 29 L12 29',sand,5)+line('M22 26 L28 16 M28 34 L35 23',terra,4)+line('M28 16 L35 20 M35 23 L47 20',sand,2.8)+line('M35 17 L59 17',deep,6)+line('M35 17 L59 17',cream,3)+line('M54 17 L59 17',terra,3)+ellipse(10,29,7,7,sand)+ellipse(9,27,6.5,6.5,lemon)+path('M4 26 Q8 21 13 25','none',cream,1.6)
 add('rider',72,72,rider)
 add('rider_wipeout',72,72,line('M5 34 Q10 18 29 21 M7 48 Q18 59 32 51 M43 10 Q63 5 68 21',cream,2)+f'<g transform="translate(25 -3) rotate(18 15 36) scale(.65)">{board}</g>'+line('M20 36 L10 44 M25 39 L34 51 M18 31 L7 25 M25 31 L34 24',sand,4)+ellipse(22,35,7,10,deep)+ellipse(20,21,6,6,lemon))
 for name,color in [('sunset',terra),('seaglass',sea),('olive',olive),('lemon',lemon)]:
@@ -63,7 +63,7 @@ for i in range(10):
 add('starfish',40,40,f'<polygon points="{" ".join(pts)}" fill="{terra}" stroke="{lemon}" stroke-width="2" stroke-linejoin="round"/>'+ellipse(19,18,3,3,lemon))
 add('gust',80,80,line('M8 29 L53 29 C79 29 72 5 58 14 M14 42 L65 42 C82 42 75 65 63 57 M7 55 L38 55 C56 55 49 73 40 66','#FFFFFF',4)+line('M14 35 L41 35',sea,2))
 def wave(gold=False):
- color=lemon if gold else '#FFFFFF';b=path('M0 21 Q32 3 64 21 T128 21 T192 21 T256 21 L256 43 Q224 25 192 43 T128 43 T64 43 T0 43Z',sea,'none',extra='opacity=".7"')
+ color=lemon if gold else '#FFFFFF';b=path('M2 26 Q12 12 64 21 T128 21 T192 21 Q244 12 254 26 Q247 39 224 37 Q208 33 192 43 T128 43 T64 43 Q18 34 2 26Z',sea,'none',extra='opacity=".18"')
  b+=path('M0 14 Q32 -4 64 14 T128 14 T192 14 T256 14 L256 27 Q224 9 192 27 T128 27 T64 27 T0 27Z',color)
  b+=line('M0 33 Q32 15 64 33 T128 33 T192 33 T256 33',cream,2)
  if gold:b+=path('M107 5 L110 12 L117 15 L110 18 L107 25 L104 18 L97 15 L104 12Z','#FFFFFF')

@@ -1,4 +1,5 @@
 extends Node2D
+const LIGHT_OFFSET: Vector2 = Vector2(5,7)
 const Missions = preload("res://scripts/missions.gd")
 const Model = preload("res://scripts/run_model.gd")
 const Chunks = preload("res://scripts/chunks.gd")
@@ -347,8 +348,8 @@ func _process(dt: float) -> void:
  rider.position=pos+Vector2(0,-air_height*60); rider.scale=Vector2.ONE*scale_*1.5; rider.rotation=run.heading+(run.spin*TAU if run.air>0 else 0)
  rider.texture=AssetLib.texture("sprites/rider_wipeout.png" if run.dead else "sprites/rider.png",Vector2(72,72))
  kite.texture=AssetLib.texture("sprites/kite_"+str(save.data.selected)+".png",Vector2(140,70)); kite.position=kite.position.lerp(pos+Vector2(sin(run.heading)*170,-190-air_height*90),minf(dt/0.35,1)); kite.scale=Vector2.ONE*scale_*1.2; kite.rotation=-run.heading*0.25
- shadow.position=pos+Vector2(8+air_height*35,10+air_height*35); shadow.scale=Vector2(0.65,0.65)*(1-air_height*0.35); shadow.color.a=0.13-air_height*0.04
- for i in range(2): lines[i].points=PackedVector2Array([rider.to_global(Vector2(23,-24+i*24)),kite.position+Vector2((i*2-1)*62,23).rotated(kite.rotation)*scale_*1.2])
+ shadow.position=pos+LIGHT_OFFSET*(1+air_height*2); shadow.scale=Vector2(0.65,0.65)*(1-air_height*0.35); shadow.color.a=0.13-air_height*0.04
+ for i in range(2): lines[i].points=PackedVector2Array([rider.to_global(Vector2(-1+i*24,-19)),kite.position+Vector2((i*2-1)*62,23).rotated(kite.rotation)*scale_*1.2])
  queue_redraw()
  if web_debug:
   JavaScriptBridge.eval("window.__meltemi=%s" % JSON.stringify({"state":state,"tack":run.tack,"heading":snappedf(run.heading,0.001),"x":snappedf(run.x,0.1),"raw":raw_touches,"unhandled":unhandled_touches,"actions":actions,"dead":run.dead,"trick":("flip" if run.flip>0 else "spin" if run.spin>0 else "none"),"grab":run.grabbing,"missions":save.data.missions}))
@@ -390,8 +391,8 @@ func _draw() -> void:
    var tex: Texture2D=AssetLib.texture("sprites/scenery/"+scenery+".png",Vector2(80,80))
    draw_texture_rect(tex,Rect2(10+side*640,fposmod(j*320+side*147+(j*73+side*41)%110+run.distance*10,height+240)-120,60,75),false)
  if is_instance_valid(kite) and kite.texture!=null:
-  draw_set_transform(kite.position+Vector2(35,50),kite.rotation,kite.scale)
-  draw_texture_rect(kite.texture,Rect2(-70,-35,140,70),false,Color(0.08,0.27,0.32,0.12))
+  draw_set_transform(kite.position+LIGHT_OFFSET,kite.rotation,kite.scale*0.36)
+  draw_texture_rect(kite.texture,Rect2(-70,-35,140,70),false,Color(0.08,0.27,0.32,0.045))
   draw_set_transform(Vector2.ZERO)
  if state in ["play","crash"]:
   if run.air<=0 and not run.dead:
@@ -413,12 +414,12 @@ func _draw() -> void:
     draw_line(Vector2(obj.x+14,obj.y+bob-16),Vector2(obj.x+26,obj.y+bob-16),Color(1,1,1,0.8),2)
    elif obj.kind not in ["wave","wave_gold"]:
     # Shared alpha silhouettes: sunlight from upper left, no collision-ring decals.
-    draw_texture_rect(tex_,Rect2(center-size_/2+Vector2(5,7),size_),false,Color(0.09,0.27,0.31,0.18))
-    draw_texture_rect(tex_,Rect2(center-size_/2+Vector2(8,11),size_),false,Color(0.09,0.27,0.31,0.08))
+    draw_texture_rect(tex_,Rect2(center-size_/2+LIGHT_OFFSET,size_),false,Color(0.09,0.27,0.31,0.18))
+    draw_texture_rect(tex_,Rect2(center-size_/2+LIGHT_OFFSET*1.6,size_),false,Color(0.09,0.27,0.31,0.08))
     var pulse: float=sin(clock*2+float(obj.x))*2
     if obj.kind in ["rock_small","rock_big","buoy","turtle"]:
      draw_set_transform(center,0,Vector2(1,0.62))
-     draw_arc(Vector2(0,size_.y*0.23),size_.x*0.46+pulse,0.05,1.45,12,Color(1,1,1,0.65),2,true)
+     draw_arc(Vector2(0,size_.y*0.23),size_.x*0.56+pulse,0.05,2.8,16,Color(1,1,1,0.78),2,true)
      draw_arc(Vector2(0,size_.y*0.23),size_.x*0.51+pulse,2.0,3.5,10,Color(0.91,1,0.97,0.38),1.5,true)
      draw_set_transform(Vector2.ZERO)
     if obj.kind in ["boat_fishing","sailboat","jetski"]:
