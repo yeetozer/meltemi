@@ -68,6 +68,23 @@ func go() -> void:
  var time_ok: bool=Engine.time_scale==1.0
  print("INPUT golden slow motion crash restores time_scale: ",time_ok)
  ok=ok and gestures and time_ok
+ var cancellation_ok: bool=true
+ for hold_grab: bool in [false,true]:
+  game.start(); game.run.launch(true)
+  var press: InputEventScreenTouch=InputEventScreenTouch.new(); press.pressed=true; press.position=Vector2(360,900)
+  game._unhandled_input(press)
+  if hold_grab: game._process(0.22)
+  var cancel: InputEventScreenTouch=press.duplicate(); cancel.pressed=false; cancel.canceled=true
+  game._input(cancel)
+  cancellation_ok=cancellation_ok and not game.run.held and game.gameplay_touches.is_empty() and game.touch_id==-1 and not game.run.grabbing and game.run.queued==0 and game.run.spin==0 and game.run.flip==0
+ print("INPUT canceled air tap/grab clears holds without tricks: ",cancellation_ok)
+ var background_ok: bool=true
+ for notification: int in [MainLoop.NOTIFICATION_APPLICATION_FOCUS_OUT,MainLoop.NOTIFICATION_APPLICATION_PAUSED]:
+  game.start(); touch.pressed=true; game._unhandled_input(touch); game.space_held=true
+  game._notification(notification)
+  background_ok=background_ok and game.state=="pause" and not game.run.held and not game.space_held and game.gameplay_touches.is_empty() and game.touch_id==-1
+ print("INPUT focus loss/application pause clears holds: ",background_ok)
+ ok=ok and cancellation_ok and background_ok
  game.ambient.stream_paused=false
  game.ambient.stop()
  game.ambient.stream=null

@@ -233,7 +233,7 @@ func _unhandled_input(event: InputEvent) -> void:
   elif gameplay_touches.has(event.index):
    gameplay_touches.erase(event.index); sync_steering()
    if event.index==touch_id:
-    if run.air>0 and touch_air and not gesture_done and touch_age<0.2 and maxf(touch_travel,touch_origin.distance_to(event.position))<40: run.tap(); audio("trick")
+    if not event.canceled and run.air>0 and touch_air and not gesture_done and touch_age<0.2 and maxf(touch_travel,touch_origin.distance_to(event.position))<40: run.tap(); audio("trick")
     run.grab(false); touch_id=-1; touch_air=false
  elif event is InputEventKey and not event.echo:
   if event.keycode==KEY_SPACE:
@@ -245,7 +245,9 @@ func _unhandled_input(event: InputEvent) -> void:
   elif event.pressed and event.keycode==KEY_ESCAPE and state=="play": show_menu("pause")
 func rider_y() -> float: return get_viewport_rect().size.y*0.68
 func _notification(what: int) -> void:
- if what==NOTIFICATION_APPLICATION_FOCUS_OUT and state=="play": show_menu("pause")
+ if what in [NOTIFICATION_APPLICATION_FOCUS_OUT,NOTIFICATION_APPLICATION_PAUSED]:
+  clear_controls(); run.grab(false)
+  if state=="play": show_menu("pause")
 func _process(dt: float) -> void:
  var real_dt: float=dt/maxf(Engine.time_scale,0.01)
  clock+=dt
