@@ -10,11 +10,12 @@ func go() -> void:
  for frame in range(3600):
   if game.state=="play":
    var r: RunModel=game.run
-   if (r.x>505 and r.tack==1) or (r.x<215 and r.tack==-1): game.space_held=not r.held; game.sync_steering()
+   if not r.steering: r.begin_steering(0)
+   r.target_x=360+100*sin(float(frame)/120.0)
    for obj: Dictionary in game.objects:
     if obj.kind in ["shell","starfish","gust","wave","wave_gold"]: continue
     if float(obj.y)>game.rider_y()-190 and float(obj.y)<game.rider_y()-50 and absf(float(obj.x)-r.x)<90:
-     if (float(obj.x)>r.x and r.tack==1) or (float(obj.x)<r.x and r.tack==-1): game.space_held=not r.held; game.sync_steering()
+     r.target_x=clampf(float(obj.x)+(-120 if float(obj.x)>360 else 120),210,510)
    if frame==1800: r.crash("Smoke forced wipeout")
   game._process(1.0/60)
   if game.state=="over": game.start(); retries+=1
@@ -26,12 +27,12 @@ func go() -> void:
  var touch: InputEventScreenTouch=InputEventScreenTouch.new(); touch.pressed=true; touch.position=Vector2(360,900)
  var mouse: InputEventMouseButton=InputEventMouseButton.new(); mouse.pressed=true; mouse.button_index=MOUSE_BUTTON_LEFT
  game._unhandled_input(touch); game._unhandled_input(touch); game._unhandled_input(mouse)
- var taps_ok: bool=game.run.held and game.run.events.get("tacks",0)==1
+ var taps_ok: bool=game.run.held and game.run.target_x==game.run.x
  var second: InputEventScreenTouch=touch.duplicate(); second.index=1; game._unhandled_input(second)
  touch.pressed=false; game._unhandled_input(touch)
- taps_ok=taps_ok and game.run.held
+ taps_ok=taps_ok and game.run.held and game.touch_id==1 and game.run.target_x==game.run.x
  second.pressed=false; game._unhandled_input(second)
- taps_ok=taps_ok and not game.run.held and game.run.events.get("tacks",0)==2
+ taps_ok=taps_ok and not game.run.held and game.run.events.get("tacks",0)==0
  var on_pause: InputEventScreenTouch=InputEventScreenTouch.new(); on_pause.pressed=true; on_pause.position=game.pause_button.get_global_rect().get_center()
  game._unhandled_input(on_pause)
  var pause_ok: bool=not game.run.held
@@ -43,25 +44,27 @@ func go() -> void:
  print("INPUT held through launch clean without tricks: ",clean)
  ok=ok and clean
  game.start(); game._process(1.0/60)
- var key: InputEventKey=InputEventKey.new(); key.keycode=KEY_SPACE; key.pressed=true; game._unhandled_input(key)
+ var key: InputEventKey=InputEventKey.new(); key.keycode=KEY_RIGHT; key.pressed=true; game._unhandled_input(key)
  var keyboard_ok: bool=game.run.held
  key.pressed=false; game._unhandled_input(key); keyboard_ok=keyboard_ok and not game.run.held
- game.run.launch(true); key.pressed=true; game._unhandled_input(key); key.pressed=false; game._unhandled_input(key); game._process(0.01)
+ game.run.launch(true); key.keycode=KEY_SPACE; key.pressed=true; game._unhandled_input(key); key.pressed=false; game._unhandled_input(key); game._process(0.01)
  keyboard_ok=keyboard_ok and game.run.spin>0
  print("INPUT Space hold/release and new air tap: ",keyboard_ok)
  ok=ok and keyboard_ok
  var gestures: bool=true
- for kind: String in ["tap","swipe","hold"]:
+ for kind: String in ["tap","swipe","hold","horizontal"]:
   game.start(); game.run.launch(true)
   var press: InputEventScreenTouch=InputEventScreenTouch.new(); press.pressed=true; press.position=Vector2(360,900)
   game._unhandled_input(press)
   if kind=="swipe":
    var drag: InputEventScreenDrag=InputEventScreenDrag.new(); drag.position=Vector2(360,820); game._unhandled_input(drag)
+  if kind=="horizontal":
+   var drag: InputEventScreenDrag=InputEventScreenDrag.new(); drag.position=Vector2(380,900); game._unhandled_input(drag)
   if kind=="hold": game._process(0.22)
   else:
    var release: InputEventScreenTouch=InputEventScreenTouch.new(); release.position=Vector2(360,900); game._unhandled_input(release)
    game._process(0.01)
-  gestures=gestures and (game.run.spin>0 if kind=="tap" else game.run.flip>0 if kind=="swipe" else game.run.grabbing)
+  gestures=gestures and (game.run.spin>0 if kind=="tap" else game.run.flip>0 if kind=="swipe" else game.run.grabbing if kind=="hold" else game.run.spin==0 and game.run.flip==0 and not game.run.grabbing)
  print("INPUT air tap->spin swipe->flip hold->grab: ",gestures)
  game.run.golden=true; game.run.air=0.7; game.apex_done=false; game._process(0.01)
  game.run.crash("time reset test"); game._process(0.01)
@@ -80,9 +83,9 @@ func go() -> void:
  print("INPUT canceled air tap/grab clears holds without tricks: ",cancellation_ok)
  var background_ok: bool=true
  for notification: int in [MainLoop.NOTIFICATION_APPLICATION_FOCUS_OUT,MainLoop.NOTIFICATION_APPLICATION_PAUSED]:
-  game.start(); touch.pressed=true; game._unhandled_input(touch); game.space_held=true
+  game.start(); touch.pressed=true; game._unhandled_input(touch); game.key_right=true
   game._notification(notification)
-  background_ok=background_ok and game.state=="pause" and not game.run.held and not game.space_held and game.gameplay_touches.is_empty() and game.touch_id==-1
+  background_ok=background_ok and game.state=="pause" and not game.run.held and not game.key_right and game.gameplay_touches.is_empty() and game.touch_id==-1
  print("INPUT focus loss/application pause clears holds: ",background_ok)
  ok=ok and cancellation_ok and background_ok
  game.ambient.stream_paused=false

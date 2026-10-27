@@ -6,12 +6,29 @@ const SHORE: float = 94.0
 const AIR_DRIFT: float = 0.25
 const AIR_MARGIN: float = 110.0
 var x: float = 360.0
-const TURN_RATE: float = 4.0
-const CARVE_ANGLE: float = 0.698
-const TURN_EASE: float = 14.0
+# Horizontal finger-to-water displacement multiplier.
+const DRAG_GAIN: float = 1.0
+# Position follow time constant, seconds.
+const FOLLOW_TAU: float = 0.06
+# Board-heading visual response time, seconds.
+const HEADING_SMOOTH: float = 0.08
+# Ignore sub-pixel finger jitter in logical canvas pixels.
+const DRAG_DEADZONE: float = 3.0
+# Maximum lateral carve angle, radians (40 degrees).
+const MAX_HEADING: float = 0.698
+# Opposite heading required to register a mission tack.
+const TACK_THRESHOLD: float = 0.25
+# Allow intentional beaching without an offscreen runaway target.
+const TARGET_MARGIN: float = 12.0
+# Keyboard target movement in logical pixels per second.
+const KEYBOARD_SPEED: float = 380.0
 var held: bool = false
-var heading: float = -CARVE_ANGLE
-var tack: int = -1
+var steering: bool = false
+var target_x: float = 360.0
+var anchor_x: float = 360.0
+var anchor_finger: float = 0.0
+var heading: float = 0.0
+var tack: int = 0
 var elapsed: float = 0.0
 var distance: float = 0.0
 var speed: float = START_SPEED
@@ -47,11 +64,18 @@ func grab(active: bool) -> void:
 func near_miss(id: int) -> bool:
  if dead or air>0 or near_ids.has(id): return false
  near_ids[id]=true; trick_points+=25; event("near"); return true
-func set_held(active: bool) -> void:
- if held==active: return
- held=active
- tack=1 if held else -1
- if not dead and air<=0: event("tacks")
+func begin_steering(finger_x: float) -> void:
+ steering=true; held=true; anchor_x=x; target_x=x; anchor_finger=finger_x
+func drag_to(finger_x: float) -> void:
+ if not steering: return
+ var movement: float = finger_x-anchor_finger
+ if absf(movement)<DRAG_DEADZONE: return
+ var desired: float = anchor_x+movement*DRAG_GAIN
+ target_x=clampf(desired,SHORE-TARGET_MARGIN,720-SHORE+TARGET_MARGIN)
+ if target_x!=desired:
+  anchor_x=target_x; anchor_finger=finger_x
+func end_steering() -> void:
+ steering=false; held=false
 func tap() -> void:
  if dead: return
  if air > 0:
@@ -81,14 +105,17 @@ func tick(dt: float) -> void:
  if combo_time > 6: combo = 1
  speed = lerpf(START_SPEED,MAX_SPEED,minf(elapsed/90.0,1.0)) * (1.5 if gust > 0 else 1.0)
  if x < SHORE+38 or x > 720-SHORE-38: speed *= 0.6
- if air<=0:
-  var target: float = CARVE_ANGLE if held else -CARVE_ANGLE
-  var delta: float = target-heading
-  heading = move_toward(heading,target,minf(TURN_RATE*dt,absf(delta)*(1.0-exp(-TURN_EASE*dt))))
- # In the air the rider flies mostly forward: sideways drift is damped and kept
- # clear of the shallows, so a long (golden) jump can't carry you into the beach.
  var lateral: float = AIR_DRIFT if air > 0 else 1.0
- x += sin(heading)*speed*dt*lateral
+ var vx: float = sin(heading)*speed
+ if steering:
+  var cap: float = speed*sin(MAX_HEADING)
+  vx=clampf((target_x-x)*(1.0-exp(-dt/FOLLOW_TAU))/maxf(dt,0.00001),-cap,cap)
+  heading=lerpf(heading,asin(clampf(vx/speed,-1.0,1.0)),1.0-exp(-dt/HEADING_SMOOTH))
+ if air<=0 and absf(heading)>TACK_THRESHOLD:
+  var side: int = 1 if heading>0 else -1
+  if tack!=0 and side!=tack: event("tacks")
+  tack=side
+ x += vx*dt*lateral
  if air > 0: x = clampf(x,SHORE+AIR_MARGIN,720-SHORE-AIR_MARGIN)
  distance += cos(heading)*speed*dt/10.0
  if air <= 0 and (x < SHORE or x > 720-SHORE): crash("Beached")
