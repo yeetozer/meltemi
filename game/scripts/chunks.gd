@@ -3,10 +3,16 @@ extends RefCounted
 const Pacing=preload("res://scripts/pacing.gd")
 const SIZES: Dictionary = {"buoy":Vector2(40,40),"rock_small":Vector2(70,60),"rock_big":Vector2(140,110),"turtle":Vector2(60,70),"boat_fishing":Vector2(70,160),"jetski":Vector2(44,90),"sailboat":Vector2(80,180),"shell":Vector2(32,32),"starfish":Vector2(40,40),"gust":Vector2(80,80),"wave":Vector2(256,48),"wave_gold":Vector2(256,48)}
 var rng: RandomNumberGenerator=RandomNumberGenerator.new()
+var schedule_cursor: Dictionary={}
+var last_seed: int=0
+var last_index: int=-1
 # Times describe arrival at the rider in open water, without collected gusts.
 # Main spawns 990.4px ahead: subtract that lead once, never once per chunk.
 const SPAWN_LEAD: float=990.4
 func chunk(seed_: int, index: int) -> Dictionary:
+ # Retain schedule positions for sequential chunks; resets/replays remain valid.
+ if seed_!=last_seed or index!=last_index+1: schedule_cursor.clear()
+ last_seed=seed_; last_index=index
  var objects: Array[Dictionary]=[]
  var start: float=index*1280.0
  var end: float=start+1280
@@ -14,8 +20,9 @@ func chunk(seed_: int, index: int) -> Dictionary:
  rng.seed=seed_+index*7919
  var course_gap: float=rng.randf_range(260,460) if start>Pacing.distance_at(30) else 360.0
  for category: String in ["obstacle","pickup","wave","gust"]:
-  var time_: float=Pacing.FIRST[category]
-  var n: int=0
+  var cursor: Dictionary=schedule_cursor.get(category,{"time":Pacing.FIRST[category],"n":0})
+  var time_: float=cursor.time
+  var n: int=cursor.n
   while time_<=until:
    var position: float=Pacing.distance_at(time_)-SPAWN_LEAD
    if position>=start and position<end:
@@ -37,4 +44,5 @@ func chunk(seed_: int, index: int) -> Dictionary:
    var density: float=Pacing.density(time_)
    time_+=lerpf(Pacing.EASY_GAPS[category],Pacing.FULL_GAPS[category],density)
    n+=1
+  schedule_cursor[category]={"time":time_,"n":n}
  return {"gap":course_gap,"gap_width":200.0,"objects":objects}

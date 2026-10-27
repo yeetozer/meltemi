@@ -7,6 +7,9 @@ func check(ok: bool, label_: String) -> void:
  print("PASS " if ok else "FAIL ",label_)
  if not ok: failed+=1
 func _initialize() -> void:
+ var main=load("res://scripts/main.gd")
+ check(main.parse_capture_args(PackedStringArray(["--capture=airborne"]),false)=="","capture arguments rejected for forced non-editor")
+ check(main.parse_capture_args(PackedStringArray(["--capture=riding"]),true)==("riding" if OS.has_feature("editor") else ""),"capture only available in editor binary")
  var r=Model.new(); r.begin_steering(100)
  for i in range(30): r.drag_to(100); r.tick(1.0/120)
  check(r.hold_locked,"stationary hold enters lock")
