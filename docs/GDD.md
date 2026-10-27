@@ -5,8 +5,9 @@ Target: iPhone 15 Safari (web build first, later native via cloud Mac CI). Keep 
 
 ## Core loop: ride → zig-zag → wave → send → trick → land → repeat
 - World scrolls DOWN; rider always travels UP-screen, carving diagonally (heading ±40° from vertical).
-- **Tap on water = switch tack** (carve to the other diagonal). Heading eases over ~0.22 s, rider sprite rotates,
-  kite swings to the opposite side over ~0.35 s. Spray burst + white wake line behind board.
+- **Hold on water = carve right; release = carve left**, targeting ±40°. Heading turns at at most
+  4 rad/s with easing near the target (~0.5 s full swing). Short pulses give partial turns.
+  Space/mouse work like touch. Rider rotates continuously, kite follows; spray + wake mark changes.
 - **Wave ramps** (foam lips across part of the lane): riding over one launches automatically.
   Normal wave ≈ 0.9 s airtime (scaled by speed), golden wave ≈ 1.8 s.
   Air = rider+kite scale up to ~1.6× at apex, shadow separates/offsets, camera zooms out slightly.
@@ -32,7 +33,7 @@ Target: iPhone 15 Safari (web build first, later native via cloud Mac CI). Keep 
 Title (logo, idle rider on water, "Tap to ride", best, shells, Kites, settings) · HUD (distance, score, combo, shells,
 pause; respect iPhone safe areas — nothing in the top ~60 logical px or bottom ~40) · Pause (resume, restart, home,
 sound, reduce motion) · Game over (score, best, NEW BEST, shells earned, big Retry, Home) · Kite shop.
-First run: in-context hints "Tap to switch direction" then at first wave "Tap in the air to spin!".
+First run: in-context hints "Hold to carve right, let go to carve left" then at first wave "Tap in the air to spin!".
 
 ## Feel
 Juice after control: wake trail, spray particles on tack, squash on landing, small shake on crash
@@ -48,6 +49,11 @@ Real physics, multiplayer, ads/IAP, accounts, leaderboards, store release.
 
 
 ## Improvement rounds 1–3
+Hold steering tracks gameplay touches by index (UI excluded), deduplicates Safari compatibility
+events, and emits `tacks` on water direction changes. Pre-launch holds never trigger air tricks;
+only fresh air presses start gestures. Air drift stays damped; held state updates for landing.
+Pause clears holds.
+
 Air gestures use logical pixels: tap release <0.2 s and <40 px travel;
 upward movement >50 px queues a 0.6 s backflip; stationary hold >=0.2 s
 starts a grab (release before landing). Spin duration remains 0.45 s.

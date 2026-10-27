@@ -8,7 +8,15 @@ func check(ok: bool,name_: String) -> void:
  if ok: passed+=1; print("PASS ",name_)
  else: failed+=1; printerr("FAIL ",name_)
 func _initialize() -> void:
- var r: RunModel=Model.new(); r.tap(); r.tick(0.2); check(r.tack==-1 and r.heading<0,"tack flips heading")
+ var r: RunModel=Model.new(); r.set_held(true)
+ for i in range(30): r.tick(1.0/60)
+ check(absf(r.heading-Model.CARVE_ANGLE)<0.02,"hold reaches right heading in half second")
+ r.set_held(false)
+ for i in range(30): r.tick(1.0/60)
+ check(absf(r.heading+Model.CARVE_ANGLE)<0.02,"release returns left")
+ check(r.events.get("tacks",0)==2,"water transitions count one tack each")
+ r=Model.new(); r.set_held(true); r.tick(0.1)
+ check(r.heading>-Model.CARVE_ANGLE and r.heading<0 and absf(r.heading+Model.CARVE_ANGLE)<=Model.TURN_RATE*0.1+0.001,"short pulse is partial and rate limited")
  r=Model.new(); r.launch(); r.x=360
  for i in range(60): r.x=360; r.tick(1.0/60)
  check(r.air==0 and not r.dead,"wave airborne lands")
@@ -19,12 +27,12 @@ func _initialize() -> void:
  var air_ok: bool=true
  for start_x: float in [140.0,360.0,580.0]:
   for t: int in [1,-1]:
-   r=Model.new(); r.elapsed=90; r.x=start_x; r.tack=t; r.heading=t*0.698; r.tick(0.0); r.launch(true)
+   r=Model.new(); r.elapsed=90; r.x=start_x; r.set_held(t==1); r.heading=t*0.698; r.tick(0.0); r.launch(true)
    var steps: int=0
    while r.air>0 and steps<600: r.tick(1.0/60); steps+=1
    air_ok=air_ok and not r.dead and r.x>=Model.SHORE+Model.AIR_MARGIN-0.01 and r.x<=720-Model.SHORE-Model.AIR_MARGIN+0.01
-   r.tap(); var tk: int=r.tack; air_ok=air_ok and tk==-t
- check(air_ok,"golden jump at max speed never beaches; tap after landing switches")
+   r.set_held(t!=1); var tk: int=r.tack; air_ok=air_ok and tk==-t
+ check(air_ok,"golden jump at max speed never beaches; press/release after landing steers")
  var maker: ChunkMaker=Chunks.new(); var gaps: bool=true
  for i in range(500):
   var c: Dictionary=maker.chunk(9182,i)

@@ -6,6 +6,8 @@ const Saves = preload("res://scripts/save_store.gd")
 var daily: bool=false
 var course_seed: int=81273
 var daily_date: String=""
+var gameplay_touches: Dictionary={}
+var space_held: bool=false
 var touch_id: int=-1
 var touch_origin: Vector2
 var touch_position: Vector2
@@ -148,7 +150,7 @@ func button(text: String, action: Callable) -> void:
 func clear_panel() -> void:
  for node: Node in panel.get_children(): panel.remove_child(node); node.queue_free()
 func show_menu(which: String) -> void:
- restore_time(); touch_id=-1; run.grab(false)
+ restore_time(); clear_controls(); run.grab(false)
  state=which; clear_panel(); panel.show(); hud.hide(); hint.text=""
  if which=="title":
   label_("MELTEMI",64)
@@ -179,7 +181,7 @@ func show_menu(which: String) -> void:
   button("Home",func() -> void: show_menu("title"))
 func start() -> void:
  mission_start=save.data.missions.progress.duplicate(true)
- restore_time(); touch_id=-1; apex_done=false; popups.clear(); mission_gained.clear(); run_spins=0
+ restore_time(); clear_controls(); apex_done=false; popups.clear(); mission_gained.clear(); run_spins=0
  var date: Dictionary=Time.get_date_dict_from_system()
  daily_date=Missions.date_key(date); course_seed=Missions.daily_seed(date) if daily else 81273
  run=Model.new(); objects.clear(); chunk_index=0; next_chunk=0; wake.clear_points(); crash_timer=0; state="play"; panel.hide(); clear_panel(); hud.show();  spin_hint=false
@@ -187,35 +189,29 @@ func start() -> void:
   objects.append({"kind":entry[0],"x":entry[1],"y":entry[2],"size":Chunks.SIZES[entry[0]],"move":false})
 func resume() -> void:
  state="play"; clear_panel(); panel.hide(); hud.show()
-func action() -> void:
- if state=="title": start(); return
- if state!="play": return
- var airborne: bool=run.air>0
- actions+=1
- run.tap(); audio("trick" if airborne else "tack")
- if not airborne: turn_juice=0.22; spray.position=Vector2(run.x,rider_y()); spray.restart(); spray.emitting=true
- Input.vibrate_handheld(12)
+func clear_controls() -> void:
+ gameplay_touches.clear(); space_held=false; touch_id=-1; touch_air=false
+ run.set_held(false)
+func sync_steering() -> void:
+ var was_held: bool=run.held
+ run.set_held(space_held or not gameplay_touches.is_empty())
+ if was_held!=run.held and run.air<=0 and state=="play":
+  actions+=1; audio("tack"); turn_juice=0.22
+  spray.position=Vector2(run.x,rider_y()); spray.restart(); spray.emitting=true
+  Input.vibrate_handheld(12)
 func over_button(pos: Vector2) -> bool:
  if pause_button.visible and pause_button.get_global_rect().grow(8).has_point(pos): return true
  if panel.visible:
   for child: Node in panel.get_children():
    if child is Button and (child as Button).get_global_rect().has_point(pos): return true
  return false
-## One physical tap must produce exactly one action. A phone tap reaches Godot as
-## a touch AND as a mouse click (Godot's emulated mouse, plus Safari's own
-## compatibility mouse events). Handling both flipped the tack twice, so the
-## rider never changed direction. Only touch presses are gameplay taps; desktop
-## mouse clicks become touches through emulate_touch_from_mouse, which is turned
-## off on touchscreens so Safari's compatibility clicks cannot become touches.
-var last_tap_ms: int = -1000
-func pointer_tap(event: InputEvent) -> bool:
- if not (event is InputEventScreenTouch and event.pressed): return false
- var now: int=Time.get_ticks_msec()
- if now-last_tap_ms<70: return false
- last_tap_ms=now
- return true
+## Ignore mouse compatibility events; desktop mouse is emulated as touch.
+## Deduplicate by touch index, not time, so fast pulses/multitouch stay valid.
 func _input(event: InputEvent) -> void:
  if event is InputEventScreenTouch and event.pressed: raw_touches+=1
+ # Releases must clear gameplay holds even when the pointer ends over UI.
+ if event is InputEventScreenTouch and not event.pressed and gameplay_touches.has(event.index):
+  _unhandled_input(event); get_viewport().set_input_as_handled()
 func _unhandled_input(event: InputEvent) -> void:
  if event is InputEventScreenDrag and event.index==touch_id:
   touch_position=event.position
@@ -223,19 +219,28 @@ func _unhandled_input(event: InputEvent) -> void:
   if touch_air and not gesture_done and touch_origin.y-touch_position.y>50:
    run.grab(false); run.backflip(); gesture_done=true; audio("trick")
  elif event is InputEventScreenTouch:
-  if event.pressed and pointer_tap(event):
-   if over_button(event.position): return
-   unhandled_touches+=1
-   touch_id=event.index; touch_origin=event.position; touch_position=event.position; touch_travel=0; touch_age=0; gesture_done=false
-   touch_air=state=="play" and run.air>0
-   if not touch_air: action()
+  if event.pressed:
+   if gameplay_touches.has(event.index) or over_button(event.position): return
+   if state=="title": start()
+   if state!="play": return
+   gameplay_touches[event.index]=true; unhandled_touches+=1; sync_steering()
+   if touch_id<0 or (run.air>0 and not touch_air):
+    touch_id=event.index; touch_origin=event.position; touch_position=event.position; touch_travel=0; touch_age=0; gesture_done=false
+    touch_air=run.air>0
    get_viewport().set_input_as_handled()
-  elif not event.pressed and event.index==touch_id:
-   if touch_air and not gesture_done and touch_age<0.2 and maxf(touch_travel,touch_origin.distance_to(event.position))<40: run.tap(); audio("trick")
-   run.grab(false); touch_id=-1
- elif event is InputEventKey and event.pressed and not event.echo:
-  if event.keycode==KEY_SPACE: action()
-  elif event.keycode==KEY_ESCAPE and state=="play": show_menu("pause")
+  elif gameplay_touches.has(event.index):
+   gameplay_touches.erase(event.index); sync_steering()
+   if event.index==touch_id:
+    if run.air>0 and touch_air and not gesture_done and touch_age<0.2 and maxf(touch_travel,touch_origin.distance_to(event.position))<40: run.tap(); audio("trick")
+    run.grab(false); touch_id=-1; touch_air=false
+ elif event is InputEventKey and not event.echo:
+  if event.keycode==KEY_SPACE:
+   if event.pressed and state=="title": start()
+   if state!="play": return
+   var key_touch: InputEventScreenTouch=InputEventScreenTouch.new()
+   key_touch.index=1000000; key_touch.pressed=event.pressed; key_touch.position=Vector2(360,900)
+   _unhandled_input(key_touch)
+  elif event.pressed and event.keycode==KEY_ESCAPE and state=="play": show_menu("pause")
 func rider_y() -> float: return get_viewport_rect().size.y*0.68
 func _notification(what: int) -> void:
  if what==NOTIFICATION_APPLICATION_FOCUS_OUT and state=="play": show_menu("pause")
@@ -245,7 +250,7 @@ func _process(dt: float) -> void:
  turn_juice=maxf(0,turn_juice-dt); landing_juice=maxf(0,landing_juice-dt); flash=maxf(0,flash-real_dt); toast_time=maxf(0,toast_time-real_dt)
  for p: Dictionary in popups: p.age+=real_dt
  popups=popups.filter(func(p: Dictionary) -> bool: return p.age<1.1)
- if state=="play" and touch_id>=0 and touch_air:
+ if state=="play" and run.air>0 and touch_id>=0 and touch_air:
   touch_age+=real_dt
   if touch_age>=0.2 and touch_travel<40 and not gesture_done:
    run.grab(true); gesture_done=true
@@ -261,7 +266,7 @@ func _process(dt: float) -> void:
  pause_button.visible=state=="play"; pause_button.position=Vector2(554,safe_top+36); pause_button.size=Vector2(110,64)
  distance_label.visible=state=="play"; distance_label.position=Vector2(210,safe_top+32); distance_label.size=Vector2(300,64); distance_label.text="%d m" % int(run.distance)
  shell_icon.visible=state=="play"; shell_icon.position=Vector2(32,safe_top+90)
- hud.position=Vector2(72,safe_top+88); hint.position=Vector2(105,height-125); hint.size=Vector2(510,60)
+ hud.position=Vector2(72,safe_top+88); hint.position=Vector2(24,height-125); hint.size=Vector2(672,60)
  if state=="play":
   panel.position=Vector2(24,safe_top); panel.size=Vector2(76,70)
   for child: Node in panel.get_children():
@@ -303,6 +308,7 @@ func _process(dt: float) -> void:
    apex_done=true; slow_age=0; Engine.time_scale=0.55
   if before_air<=0 and run.air>0: audio("jump"); spin_hint=true; spray.position=rider.position; spray.restart(); spray.emitting=true
   if run.landed:
+   touch_air=false; run.grab(false)
    landing_juice=0.3
    Input.vibrate_handheld(80 if run.dead else (35 if run.perfect else 20))
    if not run.dead:
@@ -314,7 +320,7 @@ func _process(dt: float) -> void:
   if run.air<=0: wake.add_point(Vector2(run.x,rider_y()+25))
   while wake.get_point_count()>55: wake.remove_point(0)
   hud.text="%s    ·    %s pts%s" % [run.shells,run.trick_points+run.shells*10,("    x%s" % run.combo) if run.combo>1 else ""]
-  hint.text=("Tap in the air to spin!" if spin_hint else "Tap to switch direction") if not save.data.tutorial_done else ("SHALLOWS — TURN!" if run.x<132 or run.x>588 else "")
+  hint.text=("Tap in the air to spin!" if spin_hint else "Hold to carve right, let go to carve left") if not save.data.tutorial_done else ("SHALLOWS — TURN!" if run.x<132 or run.x>588 else "")
   run_spins+=float(run.events.get("spins",0))
   run.events.distance=run.distance; run.events.run_spins=run_spins; run.events.run_shells=run.shells
   var completed: Array=Missions.update(save.data,run.events)
@@ -350,7 +356,7 @@ func _process(dt: float) -> void:
  for i in range(2): lines[i].points=PackedVector2Array([rider.position+Vector2((i*2-1)*13,-10),kite.position+Vector2((i*2-1)*55,15).rotated(kite.rotation)*scale_*1.2])
  queue_redraw()
  if web_debug:
-  JavaScriptBridge.eval("window.__meltemi=%s" % JSON.stringify({"state":state,"tack":run.tack,"heading":snappedf(run.heading,0.001),"x":snappedf(run.x,0.1),"raw":raw_touches,"unhandled":unhandled_touches,"actions":actions,"dead":run.dead,"trick":("flip" if run.flip>0 else "spin" if run.spin>0 else "none"),"grab":run.grabbing,"missions":save.data.missions}))
+  JavaScriptBridge.eval("window.__meltemi=%s" % JSON.stringify({"state":state,"tack":run.tack,"held":run.held,"heading":snappedf(run.heading,0.001),"x":snappedf(run.x,0.1),"raw":raw_touches,"unhandled":unhandled_touches,"actions":actions,"dead":run.dead,"trick":("flip" if run.flip>0 else "spin" if run.spin>0 else "none"),"grab":run.grabbing,"missions":save.data.missions}))
  if snap!="" and not capture_done:
   snap_frames+=1
   if snap_frames==8: capture()
