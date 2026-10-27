@@ -9,18 +9,34 @@ var x: float = 360.0
 # Horizontal finger-to-water displacement multiplier.
 const DRAG_GAIN: float = 2.0 # test range 1.5-2.5
 # Position follow time constant, seconds.
-const FOLLOW_TAU: float = 0.015
+const FOLLOW_TAU: float = 0.035
+# Speed-independent lateral cap, logical px/s (test range 260-340).
+const LATERAL_MAX: float = 318.0
+# Maximum lateral acceleration, logical px/s squared.
+const LATERAL_ACCEL: float = 2400.0
+# Released velocity fraction of the lateral cap.
+const RELEASE_DRIFT: float = 1.0
+# Recent nonzero steering intent survives a final catch-up frame at lift.
+const COMMAND_WINDOW: float = 0.05
+# Logical px/s required for a meaningful release command.
+const COMMAND_MIN: float = 1.0
+# Small target errors settle instead of converting thumb noise into heading flicker.
+const SETTLE_RADIUS: float = 2.35
+# Cosmetic board turn rate limit, radians per second.
+const HEADING_RATE: float = 6.0
+var lateral_velocity: float = 0.0
+var command_velocity: float = 0.0
 # Board-heading visual response time, seconds; cosmetic only.
-const HEADING_SMOOTH: float = 0.06
+const HEADING_SMOOTH: float = 0.08
 # Accumulated touch slop; disabled after crossing it until the next touch.
 const DRAG_DEADZONE: float = 2.0
-# Seconds of maximum lateral travel allowed ahead of the rider.
-const TARGET_LEAD: float = 0.08
+# Safety only: normal swipes retain their full gain-scaled distance.
+const TARGET_LEAD_MAX_PX: float = 256.0
+var drag_direction: float = 0.0
 var slop_crossed: bool = false
 var last_finger: float = 0.0
 var saturated_direction: float = 0.0
 var command_age: float = 1.0
-var command_heading: float = 0.0
 var command_pending: bool = false
 var visual_heading: float = 0.0
 # Maximum lateral carve angle, radians (40 degrees).
@@ -75,7 +91,7 @@ func near_miss(id: int) -> bool:
  near_ids[id]=true; trick_points+=25; event("near"); return true
 func begin_steering(finger_x: float) -> void:
  steering=true; held=true; anchor_x=x; target_x=x; anchor_finger=finger_x
- slop_crossed=false; last_finger=finger_x; saturated_direction=0; command_age=1; command_heading=0; command_pending=false
+ slop_crossed=false; last_finger=finger_x; saturated_direction=0; drag_direction=0; command_age=1; command_velocity=0; command_pending=false
 func drag_to(finger_x: float) -> void:
  if not steering: return
  var delta: float=finger_x-last_finger
@@ -84,17 +100,19 @@ func drag_to(finger_x: float) -> void:
   if absf(finger_x-anchor_finger)<=DRAG_DEADZONE: return
   slop_crossed=true
  if delta!=0: command_age=0; command_pending=true
- # Reversal after saturation discards any outstanding lead, not finger travel.
- if saturated_direction*delta<0:
+ # Rebase real backlog on reversal; settled +/-1.5px noise must not ratchet anchors.
+ if drag_direction*delta<0 and (saturated_direction!=0 or absf(target_x-x)>SETTLE_RADIUS+3.0*DRAG_GAIN):
   anchor_x=x; anchor_finger=finger_x-delta; saturated_direction=0
+ if delta!=0: drag_direction=signf(delta)
  var desired: float=anchor_x+(finger_x-anchor_finger)*DRAG_GAIN
- var lead: float=TARGET_LEAD*speed*sin(MAX_HEADING)
- target_x=clampf(clampf(desired,x-lead,x+lead),SHORE-TARGET_MARGIN,720-SHORE+TARGET_MARGIN)
+ target_x=clampf(clampf(desired,x-TARGET_LEAD_MAX_PX,x+TARGET_LEAD_MAX_PX),SHORE-TARGET_MARGIN,720-SHORE+TARGET_MARGIN)
  if target_x!=desired:
   saturated_direction=signf(desired-x)
   anchor_x=target_x; anchor_finger=finger_x
 func end_steering(keep_command: bool = true) -> void:
- if keep_command and steering and command_age<=0.05 and absf(command_heading)>0.03: heading=command_heading
+ if keep_command and steering and command_age<=COMMAND_WINDOW and absf(command_velocity)>COMMAND_MIN:
+  lateral_velocity=clampf(command_velocity,-LATERAL_MAX*RELEASE_DRIFT,LATERAL_MAX*RELEASE_DRIFT)
+  heading=atan2(lateral_velocity,speed)
  steering=false; held=false
 func tap() -> void:
  if dead: return
@@ -109,6 +127,7 @@ func launch(is_golden: bool = false) -> void:
  air = air_total
  # Apply airborne drift damping once; subsequent heading is the actual course.
  heading=atan2(tan(heading)*AIR_DRIFT,1.0)
+ lateral_velocity=tan(heading)*speed
  flips=0; flip=0; grabbing=false; grab_time=0; perfect=false; last_completion=-100
  spins = 0
  spin = 0
@@ -128,20 +147,30 @@ func tick(dt: float) -> void:
  speed = lerpf(START_SPEED,MAX_SPEED,minf(elapsed/90.0,1.0)) * (1.5 if gust > 0 else 1.0)
  if x < SHORE+38 or x > 720-SHORE-38: speed *= 0.6
  var lateral: float = AIR_DRIFT if air > 0 else 1.0
- var vx: float = tan(heading)*speed
+ var cap: float = minf(LATERAL_MAX,speed*tan(MAX_HEADING))
+ var vx: float = clampf(lateral_velocity,-cap,cap)
  if steering:
-  var cap: float = speed*sin(MAX_HEADING)
-  target_x=clampf(target_x,x-cap*TARGET_LEAD,x+cap*TARGET_LEAD)
-  vx=clampf((target_x-x)*(1.0-exp(-dt/FOLLOW_TAU))/maxf(dt,0.00001),-cap,cap)*lateral
+  # drag_to applies the safety bound; never consume queued finger distance here.
+  var error: float=target_x-x
+  # Soft deadband removes stationary thumb noise; braking bound prevents overshoot.
+  var travel: float=signf(error)*maxf(0,absf(error)-SETTLE_RADIUS)
+  var desired_v: float=clampf(travel/FOLLOW_TAU,-cap,cap)*lateral
+  desired_v=clampf(desired_v,-sqrt(2*LATERAL_ACCEL*absf(travel)),sqrt(2*LATERAL_ACCEL*absf(travel)))
+  vx=move_toward(lateral_velocity,desired_v,LATERAL_ACCEL*dt)
+  if vx*error<0: vx=move_toward(0,desired_v,LATERAL_ACCEL*dt) # Reverse without a stale-direction frame.
+  if dt>0: vx=signf(vx)*minf(absf(vx),absf(travel)/dt)
+ vx=clampf(vx,-cap,cap) # A sudden shallow entry must also obey the physical angle limit.
  var previous_x: float=x
  x+=vx*dt
  if air>0: x=clampf(x,SHORE+AIR_MARGIN,720-SHORE-AIR_MARGIN)
- if dt>0 and (steering or x!=previous_x+vx*dt):
-  heading=clampf(atan2((x-previous_x)/dt,speed),-MAX_HEADING,MAX_HEADING)
- if steering and command_pending and absf(heading)>0.03: command_heading=heading
+ if dt>0:
+  lateral_velocity=(x-previous_x)/dt
+  heading=clampf(atan2(lateral_velocity,speed),-MAX_HEADING,MAX_HEADING)
+ if steering and command_pending and absf(lateral_velocity)>COMMAND_MIN:
+  command_velocity=lateral_velocity
  command_pending=false
  command_age+=dt
- visual_heading=lerpf(visual_heading,heading,1.0-exp(-dt/HEADING_SMOOTH))
+ visual_heading=move_toward(visual_heading,lerpf(visual_heading,heading,1.0-exp(-dt/HEADING_SMOOTH)),HEADING_RATE*dt)
  if air<=0 and absf(heading)>TACK_THRESHOLD:
   var side: int = 1 if heading>0 else -1
   if tack!=0 and side!=tack: event("tacks")
