@@ -63,21 +63,30 @@ for i in range(10):
 add('starfish',40,40,f'<polygon points="{" ".join(pts)}" fill="{terra}" stroke="{lemon}" stroke-width="2" stroke-linejoin="round"/>'+ellipse(19,18,3,3,lemon))
 add('gust',80,80,line('M8 29 L53 29 C79 29 72 5 58 14 M14 42 L65 42 C82 42 75 65 63 57 M7 55 L38 55 C56 55 49 73 40 66','#FFFFFF',4)+line('M14 35 L41 35',sea,2))
 def wave(gold=False):
- # Rider approaches from +y: transparent toe rises to a bright, continuous lip.
- warm='#F6E7A6' if gold else '#D9F3E8'
- b=f'<defs><linearGradient id="face" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="{warm}"/><stop offset=".38" stop-color="{lemon if gold else '#B5E6D8'}" stop-opacity=".95"/><stop offset=".72" stop-color="{lemon if gold else sea}" stop-opacity=".65"/><stop offset="1" stop-color="{sea}" stop-opacity="0"/></linearGradient><linearGradient id="trough" x1="0" y1="0" x2="0" y2="1"><stop stop-color="{deep}" stop-opacity="0"/><stop offset="1" stop-color="{deep}" stop-opacity=".35"/></linearGradient></defs>'
- b+=path('M9 24 C33 3 211 0 247 24 C210 14 48 14 9 24Z','url(#trough)')
- b+=path('M9 24 C50 8 205 8 247 24 C228 36 197 45 134 46 C73 47 26 37 9 24Z','url(#face)')
- b+=path('M12 24 C49 10 205 9 244 24','none',lemon if gold else '#B9E6D8',4)
- b+=path('M17 23 C61 9 200 11 239 23','none','#FFFFFF',2.4)
- # Spilling foam is confined to the peeling shoulders, not a scalloped barrier.
- b+=path('M13 24 Q23 15 39 17 M18 27 Q28 21 36 23 M226 20 Q238 20 243 26','none','#FFFFFF',2)
- b+=ellipse(23,15,2,1.2,'#FFFFFF')+ellipse(235,17,1.7,1,'#FFFFFF')
+ # Rider approaches from +y; crest pivot is (150, 28), not sprite center.
+ # Matte falling water, broken whitewater lip and a dissolved trailing toe.
+ mid='#F2B93B' if gold else '#49AEAF'
+ light='#FFF7D0' if gold else '#BDE9DC'
+ shadow='#B97E2E' if gold else '#1F6F8B'
+ b=f'<defs><linearGradient id="slope" x1="0" y1="0" x2="0" y2="1"><stop stop-color="{light}"/><stop offset=".38" stop-color="{mid}" stop-opacity=".86"/><stop offset="1" stop-color="{sea}" stop-opacity="0"/></linearGradient><linearGradient id="back" x1="0" y1="0" x2="0" y2="1"><stop stop-color="{deep}" stop-opacity="0"/><stop offset="1" stop-color="{deep}" stop-opacity=".23"/></linearGradient></defs>'
+ b+=path('M20 25 Q90 -2 180 10 Q246 5 283 22 L276 32 Q170 19 28 38Z','url(#back)')
+ b+=path('M24 24 Q95 18 155 28 Q217 37 273 23 C283 44 280 68 261 84 Q218 93 170 87 Q96 99 48 80 Q18 63 24 24Z','url(#slope)')
+ b+=path('M32 87 Q110 97 169 90 Q229 91 267 83','none',deep,5,extra='opacity=".06"')
+ if gold: b+=path('M41 58 Q142 74 260 57','none',shadow,8,extra='opacity=".06"')
+ for x,y in [(58,31),(89,28),(126,32),(165,36),(202,36),(240,32)]:
+  b+=path(f'M{x} {y+5} Q{x-7} {y+22} {x-3} {y+43}','none',light,1.8,extra='opacity=".22"')
+ crest='M25 26 Q33 19 41 26 Q48 20 57 25 Q66 20 74 25 Q84 21 94 26 Q103 22 114 27 Q124 23 134 29 Q145 25 155 31 Q166 27 176 33 Q187 29 198 33 Q210 28 220 31 Q232 26 242 29 Q254 22 263 26 Q270 20 277 23'
+ if gold: b+=path('M30 31 Q94 24 155 35 Q220 43 274 28','none','#996224',1)
+ b+=path(crest,'none','#E0F5E9',9 if gold else 7)
+ b+=path(crest,'none','#FFFFFF',4 if gold else 3)
+ b+=path('M31 25 Q17 30 25 39 Q36 33 32 48 Q47 40 43 54 M93 27 Q86 35 96 43 L103 35 M201 32 Q194 42 204 48 L212 37','none','#F5FFF7',4)
+ b+=path('M22 47 L16 52 M31 60 L25 65 M40 55 L36 60 M19 37 L12 39','none','#F5FFF7',3)
+ for x,y in [(47,44),(83,36),(184,38),(232,36)]: b+=ellipse(x,y,2.2,1.4,'#F5FFF7')
  if gold:
-  for x,y,r in [(67,19,3),(180,15,3.5),(218,27,2)]:
-   b+=path(f'M{x-r} {y} L{x} {y- r*1.6} L{x+r} {y} L{x} {y+r*1.6}Z','#FFFFFF')
+  b+=path('M53 19 Q98 18 140 25 M162 25 Q214 31 256 20','none','#FFF7D0',2.5)
+  b+=path('M47 35 Q57 31 66 37 Q75 32 85 38 M123 40 Q136 35 147 43 M218 42 Q236 35 252 37','none','#F7FFF2',4)
  return b
-add('wave',256,48,wave());add('wave_gold',256,48,wave(True))
+add('wave',300,104,wave());add('wave_gold',300,116,wave(True))
 b=ellipse(48,49,30,23,'#FFFFFF','opacity=".65"')
 for i in range(11):
  a=i*math.tau/11;x=48+math.cos(a)*34;y=48+math.sin(a)*34;b+=ellipse(x,y,4,7,'#FFFFFF',f'transform="rotate({i*360/11+90} {x} {y})"')

@@ -419,7 +419,12 @@ func _draw() -> void:
    var course: Vector2=Vector2(sin(run.heading),-cos(run.heading))
    var origin: Vector2=Vector2(run.x,rider_y())+course*48
    var tip: Vector2=origin+course*76
-   var foam: Color=Color(1,1,1,0.42*(1.0-0.85*minf(run.air*5,1)))
+   var clearance: float=1.0
+   for ahead: Dictionary in objects:
+    var gap: float=rider_y()-float(ahead.y)
+    if ahead.kind not in ["shell","starfish","gust"] and gap>=0 and gap<180 and absf(float(ahead.x)-run.x)<float(ahead.size.x)*0.5+45:
+     clearance=minf(clearance,clampf((gap-120.0)/60.0,0.0,1.0))
+   var foam: Color=Color(1,1,1,0.42*clearance*(1.0-0.85*minf(run.air*5,1)))
    draw_line(origin,tip,foam,2.5,true)
    draw_line(tip,tip-course.rotated(0.55)*12,foam,2.5,true)
    draw_line(tip,tip-course.rotated(-0.55)*12,foam,2.5,true)
@@ -456,13 +461,19 @@ func _draw() -> void:
       draw_line(center+Vector2(side_*size_.x*0.3,size_.y*0.36),center+Vector2(side_*size_.x*0.65,size_.y*0.5+22+pulse),Color(1,1,1,0.30),5,true)
       draw_line(center+Vector2(side_*size_.x*0.3,size_.y*0.36),center+Vector2(side_*size_.x*0.65,size_.y*0.5+22+pulse),Color(1,1,1,0.6),1.5,true)
    if obj.kind in ["wave","wave_gold"]:
-    # Texture-only swell breathing; collision footprint and launch remain fixed.
+    # Crest pivot stays at collision center while only the face breathes.
     var swell: float=0.0 if save.data.reduce_motion else sin(clock*1.7+float(obj.x)*0.01)
-    var visual_size: Vector2=size_*Vector2(1.0+swell*0.008,1.0+swell*0.045)
-    draw_texture_rect(tex_,Rect2(center-visual_size/2,visual_size),false,Color(1,1,1,0.96+swell*0.04))
+    var gold_wave: bool=obj.kind=="wave_gold"
+    var stretch: float=(1.12 if gold_wave else 1.0)*(1.0+swell*0.025)
+    draw_texture_rect(tex_,Rect2(center-Vector2(150,31*stretch),Vector2(300,(116 if gold_wave else 104)*stretch)),false,Color(1,1,1,0.98+swell*0.02))
     if not save.data.reduce_motion:
-     var drift: float=sin(clock*1.3+float(obj.x))*7
-     draw_line(center+Vector2(-65+drift,-9),center+Vector2(-44+drift,-10),Color(1,1,1,0.30+0.12*swell),1,true)
+     for fleck: int in range(5 if gold_wave else 3):
+      var along: float=fposmod(float(fleck)*63+clock*9,218)-109
+      var lip_y: float=sin((along+35)*0.018)*4
+      var foam_pos: Vector2=center+Vector2(along,lip_y)
+      draw_line(foam_pos,foam_pos+Vector2(4,1),Color(1,1,0.86 if gold_wave else 1.0,0.42),2,true)
+      if gold_wave:
+       draw_line(foam_pos-Vector2(0,3),foam_pos+Vector2(0,3),Color(1,0.97,0.82,0.7),1,true)
    else:
     draw_texture_rect(tex_,Rect2(center+Vector2(0,bob)-size_/2,size_),false)
  if state not in ["play","crash"]:
