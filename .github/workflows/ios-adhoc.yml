@@ -113,10 +113,14 @@ jobs:
             -destination 'generic/platform=iOS' -archivePath "$RUNNER_TEMP/Meltemi.xcarchive" \
             DEVELOPMENT_TEAM="$APPLE_TEAM_ID" CODE_SIGN_STYLE=Automatic \
             CURRENT_PROJECT_VERSION="$BUILD_NUMBER" MARKETING_VERSION=0.1.0 TARGETED_DEVICE_FAMILY=1 \
+            CODE_SIGN_IDENTITY="Apple Development" PROVISIONING_PROFILE_SPECIFIER= PROVISIONING_PROFILE= \
             -allowProvisioningUpdates -authenticationKeyPath "$RUNNER_TEMP/private_keys/AuthKey_${ASC_KEY_ID}.p8" \
             -authenticationKeyID "$ASC_KEY_ID" -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
             > "$RUNNER_TEMP/archive.log" 2>&1; then
-            printf '::error::Archive failed; raw signing diagnostics remain private on the ephemeral runner.\n'
+            printf '::error::Archive failed. Redacted error lines follow (device IDs and fingerprints removed).\n'
+            grep -E -i 'error:|requires a provisioning|no profiles|no signing|conflicting|failed|not registered' "$RUNNER_TEMP/archive.log" \
+              | sed -E 's/[0-9A-Fa-f]{8}-[0-9A-Fa-f]{16}/<udid>/g; s/[0-9A-Fa-f]{40}/<hex40>/g; s/[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}/<uuid>/g' \
+              | sort -u | head -40
             exit 1
           fi
       - name: Export Ad Hoc IPA
