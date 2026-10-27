@@ -63,6 +63,7 @@ var clock: float = 0
 var crash_timer: float = 0
 var new_best: bool = false
 var ui: Control
+var title_ui: Control
 var panel: VBoxContainer
 var pause_button: Button
 var shell_icon: TextureRect
@@ -140,6 +141,9 @@ func _ready() -> void:
  if OS.has_feature("web"):
   web_debug=str(JavaScriptBridge.eval("location.search")).contains("debug=1")
  show_menu("title")
+ if OS.has_feature("editor") and snap in ["settings","missions"]: show_menu(snap)
+ if OS.has_feature("editor") and snap=="returning":
+  save.data.best=1240; save.data.shells=83; save.data.xp=145; show_menu("title")
  if OS.has_feature("editor") and snap=="shop": show_menu("shop")
  if OS.has_feature("editor") and snap=="pause": start(); show_menu("pause")
  if OS.has_feature("editor") and snap in ["riding","airborne","game_over","airborne_flip","airborne_grab","landing","game_over_daily"]:
@@ -160,10 +164,12 @@ func clear_panel() -> void:
  for node: Node in panel.get_children(): panel.remove_child(node); node.queue_free()
 func show_menu(which: String) -> void:
  restore_time(); clear_controls(); run.grab(false)
+ if is_instance_valid(title_ui): title_ui.queue_free()
  state=which; clear_panel(); panel.show(); hud.hide(); hint.text=""
  if which=="title":
-  label_("MELTEMI",64)
-  label_("CHASE THE WIND",20); label_("Best  %s   ·   Shells  %s" % [save.data.best,save.data.shells],23); mission_labels(); button("Ride",func() -> void: daily=false; start()); button("Daily",daily_start); button("Kites",func() -> void: show_menu("shop")); button("Settings",func() -> void: show_menu("settings"))
+  build_title()
+ elif which=="missions":
+  label_("Your next adventures",32); mission_labels(); button("Close",func() -> void: show_menu("title"))
  elif which=="pause" or which=="settings":
   label_("Catch your breath" if which=="pause" else "Make it yours",36)
   if which=="pause":
@@ -189,6 +195,7 @@ func show_menu(which: String) -> void:
    button(name_.capitalize()+ ("  ✓" if save.data.selected==name_ else "  ·  "+("Owned" if name_ in save.data.owned else str(cost)+" shells")),func() -> void: save.buy(name_,cost); show_menu("shop"))
   button("Home",func() -> void: show_menu("title"))
 func start() -> void:
+ if is_instance_valid(title_ui): title_ui.queue_free()
  mission_start=save.data.missions.progress.duplicate(true)
  restore_time(); clear_controls(); apex_done=false; popups.clear(); mission_gained.clear(); run_spins=0
  var date: Dictionary=Time.get_date_dict_from_system()
@@ -232,7 +239,7 @@ func _unhandled_input(event: InputEvent) -> void:
  elif event is InputEventScreenTouch:
   if event.pressed:
    if gameplay_touches.has(event.index) or over_button(event.position): return
-   if state=="title": start()
+   if state=="title": return
    if state!="play": return
    gameplay_touches[event.index]=event.position; unhandled_touches+=1
    if touch_id<0: anchor_touch(event.index,event.position,true)
@@ -374,12 +381,20 @@ func _process(dt: float) -> void:
  var shake_: Vector2=Vector2(sin(clock*93),cos(clock*77))*5 if state=="crash" and not save.data.reduce_motion else Vector2.ZERO
  get_viewport().canvas_transform=Transform2D(Vector2(zoom_,0),Vector2(0,zoom_),center_*(1-zoom_)+shake_)
  var scale_: float=1+air_height*0.6 if not save.data.reduce_motion else 1
- var pos: Vector2=Vector2(run.x,rider_y()) if state in ["play","crash"] else Vector2(360,height*0.88)
+ var menu_time: float=0.0 if save.data.reduce_motion else clock
+ var pos: Vector2=Vector2(run.x,rider_y()) if state in ["play","crash"] else Vector2(360+sin(menu_time*0.45)*100,height*0.49)
  rider.position=pos+Vector2(0,-air_height*60); rider.scale=Vector2.ONE*scale_*1.5; rider.rotation=run.visual_heading+(run.spin*TAU if run.air>0 else 0)
  rider.texture=AssetLib.texture("sprites/rider_wipeout.png" if run.dead else "sprites/rider.png",Vector2(72,72))
  kite.texture=AssetLib.texture("sprites/kite_"+str(save.data.selected)+".png",Vector2(140,70)); kite.position=kite.position.lerp(pos+Vector2(sin(run.heading)*170,-190-air_height*90),minf(dt/0.35,1)); kite.scale=Vector2.ONE*scale_*1.2; kite.rotation=-run.heading*0.25
+ if state=="title":
+  rider.scale=Vector2.ONE*3; rider.rotation=sin(menu_time*0.45)*0.22
+  kite.scale=Vector2.ONE*2.4; kite.position=pos+Vector2(60+sin(menu_time*0.6)*35,-245); kite.rotation=sin(menu_time*0.6)*0.08
+  wake.clear_points()
+  for j in range(24):
+   var age: float=float(j)/23.0
+   wake.add_point(pos+Vector2(sin(menu_time*0.45-age)*70-sin(menu_time*0.45)*70,160*(1-age)+40))
  shadow.position=pos+LIGHT_OFFSET*(1+air_height*2); shadow.scale=Vector2(0.65,0.65)*(1-air_height*0.35); shadow.color.a=0.13-air_height*0.04
- for i in range(2): lines[i].points=PackedVector2Array([rider.to_global(Vector2(-1+i*24,-19)),kite.position+Vector2((i*2-1)*62,23).rotated(kite.rotation)*scale_*1.2])
+ for i in range(2): lines[i].points=PackedVector2Array([rider.to_global(Vector2(-1+i*24,-19)),kite.position+Vector2((i*2-1)*62,23).rotated(kite.rotation)*kite.scale.x])
  queue_redraw()
  if web_debug:
   JavaScriptBridge.eval("window.__meltemi=%s" % JSON.stringify({"state":state,"tack":run.tack,"held":run.held,"steering":run.steering,"target_x":run.target_x,"heading":snappedf(run.heading,0.001),"x":snappedf(run.x,0.1),"raw":raw_touches,"unhandled":unhandled_touches,"actions":actions,"dead":run.dead,"trick":("flip" if run.flip>0 else "spin" if run.spin>0 else "none"),"grab":run.grabbing,"missions":save.data.missions}))
@@ -488,7 +503,7 @@ func _draw() -> void:
        draw_line(foam_pos-Vector2(0,3),foam_pos+Vector2(0,3),Color(1,0.97,0.82,0.7),1,true)
    else:
     draw_texture_rect(tex_,Rect2(center+Vector2(0,bob)-size_/2,size_),false)
- if state not in ["play","crash"]:
+ if state not in ["play","crash","title"]:
   draw_rect(Rect2(115,maxf(safe_top,height*0.065),490,panel.size.y+45),Color("f4ebdd"))
 
  if state=="play" and not save.data.reduce_motion:
@@ -509,3 +524,25 @@ func _draw() -> void:
   draw_string_outline(font,p.pos+Vector2(-60,-float(p.age)*65),p.text,HORIZONTAL_ALIGNMENT_LEFT,-1,28,4,Color(0.12,0.3,0.35,1-float(p.age)/1.1))
   draw_string(font,p.pos+Vector2(-60,-float(p.age)*65),p.text,HORIZONTAL_ALIGNMENT_LEFT,-1,28,Color(1,1,1,1-float(p.age)/1.1))
  if toast_time>0: draw_string(font,Vector2(130,safe_top+180),toast,HORIZONTAL_ALIGNMENT_LEFT,470,22,Color.WHITE)
+
+func build_title() -> void:
+ panel.hide()
+ title_ui=Control.new(); title_ui.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT); title_ui.mouse_filter=Control.MOUSE_FILTER_IGNORE; ui.add_child(title_ui)
+ var height: float=get_viewport_rect().size.y
+ for entry: Array in [["MELTEMI",48,110],["Chase the wind",22,174]]:
+  var word: Label=Label.new(); word.text=entry[0]; word.position=Vector2(150,entry[2]); word.size=Vector2(420,64); word.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER; word.add_theme_font_size_override("font_size",entry[1]); word.add_theme_color_override("font_color",Color("183e49")); title_ui.add_child(word)
+ title_button("⚙",Vector2(594,100),Vector2(88,88),func() -> void: show_menu("settings"))
+ title_button("First ride" if int(save.data.best)==0 else "Best  %s" % save.data.best,Vector2(140,238),Vector2(230,52),Callable(),false)
+ if int(save.data.shells)>0: title_button("Shells  %s" % save.data.shells,Vector2(384,238),Vector2(196,52),Callable(),false)
+ if int(save.data.xp)>0: title_button("Lv %d · %d/100 XP" % [Missions.level(int(save.data.xp)),int(save.data.xp)%100],Vector2(210,300),Vector2(300,48),Callable(),false)
+ title_button("3 missions · view progress",Vector2(140,height-390),Vector2(440,56),func() -> void: show_menu("missions"))
+ title_button("Ride",Vector2(120,height-310),Vector2(480,104),func() -> void: daily=false; start())
+ title_button("Daily",Vector2(120,height-186),Vector2(230,84),daily_start)
+ title_button("Kites",Vector2(370,height-186),Vector2(230,84),func() -> void: show_menu("shop"))
+
+func title_button(text: String, at: Vector2, dimensions: Vector2, action: Callable, interactive: bool=true) -> void:
+ var b: Button=Button.new(); b.text=text; b.position=at; b.size=dimensions; b.add_theme_font_size_override("font_size",34 if text=="Ride" else 22); b.mouse_filter=Control.MOUSE_FILTER_STOP
+ var style: StyleBoxFlat=StyleBoxFlat.new(); style.bg_color=Color("aa4c2c") if text=="Ride" else Color("f4ebdd"); style.set_corner_radius_all(22); b.add_theme_stylebox_override("normal",style); b.add_theme_color_override("font_color",Color("ffffff") if text=="Ride" else Color("183e49"))
+ if interactive: b.pressed.connect(action)
+ else: b.mouse_filter=Control.MOUSE_FILTER_IGNORE; b.focus_mode=Control.FOCUS_NONE
+ title_ui.add_child(b)
