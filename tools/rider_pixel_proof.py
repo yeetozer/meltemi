@@ -40,8 +40,8 @@ for mode, name in MODES.items():
     assert cream.sum() > 40 and nose.sum() > 5, (name, proof[name])
     if mode in ('left_carve', 'riding', 'right_carve'):
         # Broad enough for both wing tips, every line, rider, board and tail spray.
-        crop_box = (150, 1200, 1030, 1930)
-        crop = image.crop(crop_box).resize((2640, 2190), Image.Resampling.NEAREST)
+        crop_box = (0, 1150, 1179, 1930)
+        crop = image.crop(crop_box).resize((3537, 2340), Image.Resampling.NEAREST)
         crops[mode] = crop
         proof[name]['crop_bbox_in_full_frame'] = crop_box
         proof[name]['board_bbox_in_3x_crop'] = [(box[i] - crop_box[i % 2]) * 3 for i in range(4)]
@@ -49,14 +49,14 @@ for mode, name in MODES.items():
             crop.save(OUT / 'rider_crop_3x.png')
 
 reference = Image.open(ROOT / 'art/qa/claude/layers/directions_layered.png').convert('RGB')
-width = 3 * 2640
-sheet = Image.new('RGB', (width, 80 + 2190 + 80 + reference.height), '#f4ebdd')
+width = 3 * 3537
+sheet = Image.new('RGB', (width, 80 + 2340 + 80 + reference.height), '#f4ebdd')
 draw = ImageDraw.Draw(sheet)
 for index, mode in enumerate(('left_carve', 'riding', 'right_carve')):
-    draw.text((index * 2640 + 30, 25), 'IN-ENGINE ' + mode + ' / actual pixels enlarged 3x', fill='#22384a')
-    sheet.paste(crops[mode], (index * 2640, 80))
-draw.text((30, 80 + 2190 + 25), 'APPROVED REFERENCE / original pixels unchanged', fill='#22384a')
-sheet.paste(reference, ((width - reference.width) // 2, 80 + 2190 + 80))
+    draw.text((index * 3537 + 30, 25), 'IN-ENGINE ' + mode + ' / actual pixels enlarged 3x', fill='#22384a')
+    sheet.paste(crops[mode], (index * 3537, 80))
+draw.text((30, 80 + 2340 + 25), 'APPROVED REFERENCE / original pixels unchanged', fill='#22384a')
+sheet.paste(reference, ((width - reference.width) // 2, 80 + 2340 + 80))
 sheet.save(OUT / 'compare_vs_approved.png')
 (OUT / 'board_pixel_proof.json').write_text(json.dumps(proof, indent=2) + '\n')
 print(json.dumps(proof, indent=2))
