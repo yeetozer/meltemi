@@ -71,6 +71,32 @@ class SigningTests(unittest.TestCase):
                 self.assertFalse((root / 'Library/MobileDevice/Provisioning Profiles/fixture-profile.mobileprovision').exists())
                 self.assertIn(('security', 'list-keychains', '-d', 'user', '-s', '/fixture/login.keychain-db'), commands)
 
+    def test_registered_device_is_get_only(self):
+        ci_spec = importlib.util.spec_from_file_location('ios_ci', Path(__file__).with_name('ios_ci.py'))
+        assert ci_spec is not None and ci_spec.loader is not None
+        ci = importlib.util.module_from_spec(ci_spec)
+        ci_spec.loader.exec_module(ci)
+        replies = [
+            {'data': [{'attributes': {'status': 'ENABLED'}}]},
+            {'data': [{'attributes': {'identifier': 'com.yeetozer.meltemi'}}]},
+        ]
+        requests = []
+        def request(req, **kwargs):
+            requests.append(req)
+            return io.BytesIO(json.dumps(replies.pop(0)).encode())
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / 'private_keys').mkdir()
+            (root / 'private_keys/AuthKey_fixture.p8').write_bytes(b'fixture')
+            env = {'RUNNER_TEMP': directory, 'ASC_KEY_ID': 'fixture',
+                   'ASC_ISSUER_ID': 'fixture', 'DEVICE_UDID': 'fixture-device'}
+            with patch.dict(os.environ, env), \
+                 patch.dict(sys.modules, {'jwt': types.SimpleNamespace(encode=lambda *a, **kw: 'fixture')}), \
+                 patch.object(ci.urllib.request, 'urlopen', request), contextlib.redirect_stdout(io.StringIO()):
+                ci.register()
+        self.assertEqual(len(requests), 2)
+        self.assertTrue(all(req.get_method() == 'GET' for req in requests))
+
     def test_valid_existing_identity_and_profile(self):
         self.exercise()
 
