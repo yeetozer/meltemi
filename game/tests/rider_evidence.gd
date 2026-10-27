@@ -36,7 +36,7 @@ func _process(_dt: float) -> bool:
   var time: float=float(count)/30.0
   game.run.drag_to(360+90*sin(time*TAU/3.0))
   min_carve=minf(min_carve,game.rider_visual.carve); max_carve=maxf(max_carve,game.rider_visual.carve)
-  saw_left=saw_left or game.rider_visual.side<0; saw_right=saw_right or game.rider_visual.side>0
+  saw_left=saw_left or game.rider_visual.signed_carve<0; saw_right=saw_right or game.rider_visual.signed_carve>0
   if game.run.dead: push_error("QA gameplay crashed: "+game.run.reason); quit(1)
  if count>=(600 if mode=="play" else 180):
   if mode=="play": assert(saw_left and saw_right and min_carve<0.1 and max_carve>0.99)

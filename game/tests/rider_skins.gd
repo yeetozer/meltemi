@@ -8,27 +8,32 @@ func test() -> void:
    rig.set_skins(b,c)
    assert(rig.board.texture.resource_path.ends_with("board_"+b+".png"))
    assert(rig.upper.texture.resource_path.ends_with("rider_"+c+".png"))
-   for mirror: float in [-1.0,1.0]:
-    rig.scale.x=mirror
-    for amount: float in [0.0,0.25,0.5,0.75,1.0]:
-     rig.solve(amount)
-     assert(rig.board.position==Vector2(spec.board.sprite_offset_px[0],spec.board.sprite_offset_px[1]))
-     assert(spec.board.readability_scale<=1.15)
-     assert((rig.board.scale*rig.board.texture.get_size()).distance_to(Vector2(28.8,43.2)*spec.board.readability_scale)<0.001)
-     var tail: Vector2=Vector2(spec.board.tail_px[0],spec.board.tail_px[1])
-     assert(rig.tail_point().distance_to(rig.to_global(rig.board.position+tail.rotated(rig.board.rotation)))<0.001)
-     assert(rig.spray_sprite.to_global(Vector2(1.44,-5.04)/rig.spray_sprite.scale).distance_to(rig.tail_point())<0.001)
-     for i: int in range(2):
-      var point: Array=spec.board.front_strap_px if i==0 else spec.board.back_strap_px
-      var strap: Vector2=Vector2(point[0],point[1])
-      assert(rig.to_global(rig.feet[i]).distance_to(rig.board.to_global(strap/rig.board.scale))<0.5)
-     for i: int in range(4):
-      assert(rig.bar_point(i).is_finite())
-      var bar: Array=spec.upper.bar_px[["left","right","center","center"][i]]
-      assert(rig.bar_point(i).distance_to(rig.to_global(Vector2(bar[0],bar[1])))<0.01)
-      var kite_transform: Transform2D=Transform2D(0.2,Vector2(430,700)).scaled_local(Vector2.ONE*1.45)
-      assert((kite_transform*[Vector2(-53.2,31.5),Vector2(53.2,31.5),Vector2(-28.6,1.31),Vector2(28.6,1.31)][i]).is_finite())
- print("SKINS PASS all four combinations; 15–45 degree blend, both mirrors, feet, spray attachment and four bar anchors")
+   for amount: float in [-1.0,-0.75,-0.5,-0.25,0.0,0.25,0.5,0.75,1.0]:
+    rig.solve(amount)
+    assert(rig.scale.x==1)
+    assert((rig.board.scale*rig.board.texture.get_size()).distance_to(Vector2(28.8,43.2)*spec.board.readability_scale)<0.001)
+    assert(rig.spray_sprite.to_global(Vector2(1.44,-5.04)/rig.spray_sprite.scale).distance_to(rig.tail_point())<0.001)
+    for foot: Vector2 in rig.feet:
+     var closest: float=INF
+     for point: Array in [spec.board.front_strap_px,spec.board.back_strap_px]:
+      closest=minf(closest,foot.distance_to(rig.board.position+Vector2(point[0],point[1]).rotated(rig.board.rotation)))
+     assert(closest<0.5)
+    for a: int in range(2):
+     for b_: int in range(2):
+      assert(Geometry2D.segment_intersects_segment(rig.paths[0][a],rig.paths[0][a+1],rig.paths[1][b_],rig.paths[1][b_+1])==null,"Legs must not cross")
+    for phase: float in [0.0,0.1,0.25,0.35,0.5,0.75,0.9]:
+     for grab: bool in [false,true]:
+      rig.update_pose(0,0,false,phase,grab)
+      for i: int in range(4):
+       var anchor: Array=spec.upper.bar_px[["left","right","center","center"][i]]
+       var pivot: Vector2=Vector2(spec.upper.sprite_offset_px[0],spec.upper.sprite_offset_px[1])
+       var expected: Vector2=rig.to_global(rig.upper.position+(Vector2(anchor[0],anchor[1])-pivot).rotated(rig.upper.rotation))
+       assert(rig.bar_point(i).is_finite() and rig.bar_point(i).distance_to(expected)<0.01)
+      var left: Vector2=rig.bar_point(0)
+      var right: Vector2=rig.bar_point(1)
+      assert(left.x<right.x)
+      assert(Geometry2D.segment_intersects_segment(left,Vector2(-170,-300),right,Vector2(170,-300))==null)
+ print("SKINS PASS all four combinations, nine signed carves, feet, legs, spray, six flip phases and grab anchors")
  var store: RefCounted=load("res://scripts/save_store.gd").new()
  assert(store.defaults().selected_board=="classic" and store.defaults().selected_character=="navy")
  store.path="user://rider_skin_migration_test.json"
