@@ -1,0 +1,127 @@
+{
+  "units_to_px": 0.72,
+  "origin": "rider origin; board offset (10,13) exposes nose below hips; +y = down-screen",
+  "board": {
+    "readability_scale": 1.12,
+    "sprite_offset_px": [
+      10,
+      13
+    ],
+    "pivot": "sprite centre",
+    "length_px": 40.32,
+    "width_px": 15.3216,
+    "front_strap_px": [
+      0,
+      -11.6928
+    ],
+    "back_strap_px": [
+      0,
+      11.6928
+    ],
+    "tail_px": [
+      0,
+      23.0
+    ],
+    "angle_straight_deg": 15.0,
+    "angle_full_carve_deg": 45.0
+  },
+  "upper": {
+    "sprite_offset_px": [
+      0.0,
+      -17.28
+    ],
+    "hip_front_px_straight": [
+      4.68,
+      -12.24
+    ],
+    "hip_back_px_straight": [
+      -4.68,
+      -12.24
+    ],
+    "hip_front_px_carve": [
+      4.32,
+      -12.24
+    ],
+    "hip_back_px_carve": [
+      -4.32,
+      -12.24
+    ],
+    "bar_px": {
+      "left": [
+        -10.97,
+        -32.77
+      ],
+      "center": [
+        -1.273,
+        -33.448
+      ],
+      "right": [
+        8.423,
+        -34.126
+      ]
+    }
+  },
+  "legs": {
+    "outline_width_px": 8.64,
+    "outline_colour": "#FFFFFF",
+    "outline_alpha": 0.92,
+    "fill_width_px": 6.12,
+    "fill_colour": "character suit colour",
+    "foot_ellipse_px": [
+      3.6,
+      2.304
+    ],
+    "foot_rotation": "board angle",
+    "knee": "mid(hip,foot) + perp*bend, perp chosen so its x has sign +1 for front leg and -1 for back leg; bend_units = max(3.5, 9 - 0.12*len_units)",
+    "draw_order": "back leg outline, back leg fill (suit lightened 18%), front leg outline, front leg fill, feet"
+  },
+  "spray": {
+    "anchor": "SVG attachment (-6,-2) aligned to board tail; sprite and local offset rotate with board angle",
+    "offset_px": [
+      -1.44,
+      5.04
+    ]
+  },
+  "layer_order": [
+    "spray",
+    "board",
+    "legs",
+    "upper"
+  ],
+  "skins": {
+    "boards": {
+      "classic": {
+        "deck": "#F4EBDD",
+        "nose": "#C8643B",
+        "tail": "#35546A",
+        "rail": "#22384A",
+        "pad": "#35546A",
+        "width": 19.0
+      },
+      "seaglass": {
+        "deck": "#8FC9B9",
+        "nose": "#F2C14E",
+        "tail": "#22384A",
+        "rail": "#22384A",
+        "pad": "#22384A",
+        "width": 18.0
+      }
+    },
+    "characters": {
+      "navy": {
+        "suit": "#22384A",
+        "harness": "#8FC9B9",
+        "helmet": "#F4EBDD",
+        "visor": "#1F6F8B",
+        "skin": "#D9996E"
+      },
+      "terra": {
+        "suit": "#7A3B26",
+        "harness": "#F2C14E",
+        "helmet": "#F7F1E6",
+        "visor": "#7A8B4A",
+        "skin": "#B9805A"
+      }
+    }
+  }
+}

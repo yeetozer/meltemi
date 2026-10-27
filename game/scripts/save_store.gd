@@ -3,7 +3,7 @@ extends RefCounted
 var path: String = "user://save.json"
 var data: Dictionary = {}
 func defaults() -> Dictionary:
- return {"version":2,"xp":0,"missions":{"next":3,"active":[0,1,2],"progress":{}},"daily_best":{},"hints":0,"best":0,"shells":0,"owned":["sunset"],"selected":"sunset","sound":true,"reduce_motion":false,"tutorial_done":false}
+ return {"version":2,"selected_board":"classic","selected_character":"navy","xp":0,"missions":{"next":3,"active":[0,1,2],"progress":{}},"daily_best":{},"hints":0,"best":0,"shells":0,"owned":["sunset"],"selected":"sunset","sound":true,"reduce_motion":false,"tutorial_done":false}
 func read_save() -> void:
  data = defaults()
  if not FileAccess.file_exists(path): return
