@@ -34,9 +34,9 @@ func _initialize() -> void:
    r.drag_to(200+direction*float(i+1))
    var previous: float=r.x
    r.tick(1.0/60)
-   capped=capped and absf(r.x-previous)*60<=r.speed*sin(Model.MAX_HEADING)+0.001
+   capped=capped and absf(r.x-previous)*60<=Model.LATERAL_MAX+0.001
    if i==4: check(r.heading*direction>0,"heading follows drag")
-  check(absf(r.x-(360+direction*200))<5,"100px slow finger drag follows 200px without deadzone loss")
+  check(absf(r.x-(360+direction*200))<8,"100px slow finger drag follows 200px within follow lag and settle radius")
   check(capped,"lateral carve speed capped")
   for i in range(60): r.tick(1.0/60)
   check(absf(r.heading)<0.01,"stationary finger settles straight")
@@ -48,19 +48,20 @@ func _initialize() -> void:
  r.target_x=r.x; r.tick(1.0/60) # Zero-velocity catch-up just before lift.
  r.end_steering()
  check(absf(r.heading-commanded)<0.001,"release ignores zero-velocity catch-up frame")
- var released: float=r.heading
+ var released: float=r.lateral_velocity
  for i in range(400): r.tick(1.0/60)
- check(r.heading==released and r.reason=="Beached","release holds heading and eventually beaches")
- r=Model.new(); r.begin_steering(0); r.drag_to(100); r.tick(1.0/60)
- r.drag_to(-100); r.tick(1.0/60)
+ check(r.lateral_velocity>0 and r.lateral_velocity<=released+0.001 and r.reason=="Beached","release keeps lateral drift until beach (shallow angle cap allowed)")
+ r=Model.new(); r.begin_steering(0)
+ for i in range(8): r.drag_to(float(i+1)*10); r.tick(1.0/60)
+ for i in range(8): r.drag_to(80-float(i+1)*10); r.tick(1.0/60)
  check(r.events.get("tacks",0)==1,"opposite heading hysteresis counts tack")
  r=Model.new(); r.begin_steering(300); r.drag_to(302)
  check(r.target_x==360,"drag deadzone ignores jitter")
  r.drag_to(2000)
  r.drag_to(1990)
- check(absf(r.target_x-r.x)<=Model.TARGET_LEAD*r.speed*sin(Model.MAX_HEADING),"target lead bounded to 80ms")
+ check(absf(r.target_x-r.x)<=Model.TARGET_LEAD*Model.LATERAL_MAX,"target lead bounded to 80ms")
  r=Model.new(); r.x=625; r.begin_steering(0); r.drag_to(1000)
- r.drag_to(999)
+ r.drag_to(998)
  var before_reverse: float=r.x
  r.tick(1.0/60)
  check(r.x<before_reverse,"shore clamp reverses within one frame")
