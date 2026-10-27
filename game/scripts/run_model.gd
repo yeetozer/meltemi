@@ -1,7 +1,28 @@
 class_name RunModel
 extends RefCounted
-const START_SPEED: float = 380.0
-const MAX_SPEED: float = 700.0
+const Pacing=preload("res://scripts/pacing.gd")
+const START_SPEED: float = Pacing.START_SPEED
+# Input timestamps use simulation time, deterministic in replays and paused with play.
+const FILTER_MIN_CUTOFF: float=1.5
+const FILTER_BETA: float=2.0
+const FILTER_D_CUTOFF: float=1.0
+const HOLD_SPEED: float=25.0
+const HOLD_TIME: float=0.10
+const UNLOCK_PX: float=10.0
+const STRAIGHT_ENTER: float=20.0
+const STRAIGHT_EXIT: float=35.0
+var hold_locked: bool=false
+var hold_age: float=0
+var lock_finger: float=0
+var raw_finger: float=0
+var filtered_finger: float=0
+var filtered_derivative: float=0
+var input_clock: float=0
+var input_stamp: float=0
+var straight: bool=true
+static func filter_alpha(cutoff: float, dt: float) -> float:
+ return 1.0/(1.0+1.0/(TAU*cutoff*dt))
+const MAX_SPEED: float = Pacing.MAX_SPEED
 const SHORE: float = 94.0
 const AIR_DRIFT: float = 0.25
 const AIR_MARGIN: float = 110.0
@@ -39,8 +60,9 @@ var saturated_direction: float = 0.0
 var command_age: float = 1.0
 var command_pending: bool = false
 var visual_heading: float = 0.0
-# Maximum lateral carve angle, radians (40 degrees).
+# Legacy reference angle retained for replay compatibility; never a velocity cap.
 const MAX_HEADING: float = 0.698
+const VISUAL_MAX_HEADING: float=0.872665 # 50 degrees, cosmetic only.
 # Opposite heading required to register a mission tack.
 const TACK_THRESHOLD: float = 0.25
 # Allow intentional beaching without an offscreen runaway target.
@@ -91,9 +113,28 @@ func near_miss(id: int) -> bool:
  near_ids[id]=true; trick_points+=25; event("near"); return true
 func begin_steering(finger_x: float) -> void:
  steering=true; held=true; anchor_x=x; target_x=x; anchor_finger=finger_x
+ hold_locked=false; hold_age=0; raw_finger=finger_x; filtered_finger=finger_x; filtered_derivative=0; input_stamp=input_clock
  slop_crossed=false; last_finger=finger_x; saturated_direction=0; drag_direction=0; command_age=1; command_velocity=0; command_pending=false
 func drag_to(finger_x: float) -> void:
  if not steering: return
+ var dt: float=maxf(input_clock-input_stamp,1.0/120.0)
+ input_stamp=input_clock
+ var raw_delta: float=finger_x-raw_finger
+ var derivative: float=raw_delta/dt
+ raw_finger=finger_x
+ filtered_derivative=lerpf(filtered_derivative,derivative,filter_alpha(FILTER_D_CUTOFF,dt))
+ filtered_finger=lerpf(filtered_finger,finger_x,filter_alpha(FILTER_MIN_CUTOFF+FILTER_BETA*absf(filtered_derivative),dt))
+ if hold_locked:
+  if absf(finger_x-lock_finger)<=UNLOCK_PX: return
+  hold_locked=false; hold_age=0; anchor_x=target_x; anchor_finger=lock_finger
+  last_finger=lock_finger; saturated_direction=0; drag_direction=0
+  # Preserve the entire intentional excursion, including the unlock threshold.
+  filtered_finger=finger_x
+ # Reversal of a saturated target must not wait for filter catch-up.
+ if saturated_direction*raw_delta<0:
+  filtered_finger=raw_finger
+  last_finger=raw_finger-raw_delta
+ finger_x=filtered_finger
  var delta: float=finger_x-last_finger
  last_finger=finger_x
  if not slop_crossed:
@@ -137,17 +178,28 @@ func crash(why: String) -> void:
  reason = why
  combo = 1
 func score() -> int: return int(distance) + trick_points + shells * 10
+func base_speed() -> float:
+ return Pacing.speed_at(elapsed)
 func tick(dt: float) -> void:
  landed = false
  if dead: return
  elapsed += dt
+ input_clock+=dt
+ if input_clock-input_stamp>dt*1.5:
+  filtered_derivative=lerpf(filtered_derivative,0,filter_alpha(FILTER_D_CUTOFF,maxf(dt,0.00001)))
+ # No drag events is also a stationary finger. Never gate keyboard target motion.
+ if steering and not hold_locked:
+  var quiet: bool=absf(filtered_derivative)<HOLD_SPEED
+  hold_age=hold_age+dt if quiet else 0.0
+  if hold_age>=HOLD_TIME:
+   hold_locked=true; lock_finger=filtered_finger
  gust = maxf(0,gust-dt)
  combo_time += dt
  if combo_time > 6: combo = 1
- speed = lerpf(START_SPEED,MAX_SPEED,minf(elapsed/90.0,1.0)) * (1.5 if gust > 0 else 1.0)
+ speed = base_speed() * (1.5 if gust > 0 else 1.0)
  if x < SHORE+38 or x > 720-SHORE-38: speed *= 0.6
  var lateral: float = AIR_DRIFT if air > 0 else 1.0
- var cap: float = minf(LATERAL_MAX,speed*tan(MAX_HEADING))
+ var cap: float = LATERAL_MAX # Forward speed (including shallows) never limits input authority.
  var vx: float = clampf(lateral_velocity,-cap,cap)
  if steering:
   # drag_to applies the safety bound; never consume queued finger distance here.
@@ -159,18 +211,22 @@ func tick(dt: float) -> void:
   vx=move_toward(lateral_velocity,desired_v,LATERAL_ACCEL*dt)
   if vx*error<0: vx=move_toward(0,desired_v,LATERAL_ACCEL*dt) # Reverse without a stale-direction frame.
   if dt>0: vx=signf(vx)*minf(absf(vx),absf(travel)/dt)
- vx=clampf(vx,-cap,cap) # A sudden shallow entry must also obey the physical angle limit.
+ vx=clampf(vx,-cap,cap) # Safety cap is independent of forward speed, including shallow entry.
  var previous_x: float=x
  x+=vx*dt
  if air>0: x=clampf(x,SHORE+AIR_MARGIN,720-SHORE-AIR_MARGIN)
  if dt>0:
   lateral_velocity=(x-previous_x)/dt
-  heading=clampf(atan2(lateral_velocity,speed),-MAX_HEADING,MAX_HEADING)
+  heading=atan2(lateral_velocity,speed)
  if steering and command_pending and absf(lateral_velocity)>COMMAND_MIN:
   command_velocity=lateral_velocity
  command_pending=false
  command_age+=dt
- visual_heading=move_toward(visual_heading,lerpf(visual_heading,heading,1.0-exp(-dt/HEADING_SMOOTH)),HEADING_RATE*dt)
+ if absf(lateral_velocity)<STRAIGHT_ENTER: straight=true
+ elif absf(lateral_velocity)>STRAIGHT_EXIT: straight=false
+ var cosmetic: float=0.0 if straight else clampf(heading,-VISUAL_MAX_HEADING,VISUAL_MAX_HEADING)
+ visual_heading=move_toward(visual_heading,lerpf(visual_heading,cosmetic,1.0-exp(-dt/HEADING_SMOOTH)),HEADING_RATE*dt)
+ if absf(visual_heading)<0.00001 and straight: visual_heading=0
  if air<=0 and absf(heading)>TACK_THRESHOLD:
   var side: int = 1 if heading>0 else -1
   if tack!=0 and side!=tack: event("tacks")

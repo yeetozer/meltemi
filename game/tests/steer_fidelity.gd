@@ -1,12 +1,12 @@
 extends SceneTree
-const Model=preload("res://scripts/run_model.gd")
+const Model=preload("res://tests/steer_fixed.gd")
 const DT: float=1.0/120.0
 func _initialize() -> void:
  var rows: Array=[]
  var failed: int=0
  var baseline: Dictionary={}
  var verify: bool=not "--capture" in OS.get_cmdline_user_args()
- for speed: float in [380.0,700.0,1050.0]:
+ for speed: float in [380.0,260.0,700.0,1050.0]:
   for amount: float in [60.0,120.0]:
    for duration: float in [0.08,0.15,0.25,0.4]:
     var r=Model.new(); r.x=300; r.begin_steering(0)
@@ -14,7 +14,7 @@ func _initialize() -> void:
     for i in range(360):
      var t: float=(i+1)*DT
      var u: float=minf(t/duration,1)
-     r.elapsed=90 if speed>=700 else 0; r.gust=10 if speed>700 else 0
+     r.fixed_speed=speed; r.elapsed=180 if speed>=700 else 0; r.gust=10 if speed>700 else 0
      r.drag_to(amount*(0.5-0.5*cos(PI*u))); r.tick(DT)
      curve.append(r.x-300)
      overshoot=maxf(overshoot,r.x-r.target_x)

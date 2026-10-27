@@ -188,8 +188,7 @@ func start() -> void:
  var date: Dictionary=Time.get_date_dict_from_system()
  daily_date=Missions.date_key(date); course_seed=Missions.daily_seed(date) if daily else 81273
  run=Model.new(); objects.clear(); chunk_index=0; next_chunk=0; wake.clear_points(); crash_timer=0; state="play"; panel.hide(); clear_panel(); hud.show();  spin_hint=false
- for entry: Array in [["wave",360.0, rider_y()-500],["shell",320.0,rider_y()-660],["shell",360.0,rider_y()-740],["buoy",500.0,rider_y()-850]]:
-  objects.append({"kind":entry[0],"x":entry[1],"y":entry[2],"size":Chunks.SIZES[entry[0]],"move":false})
+ # The course owns the opening too; retries always retain the full calm warm-up.
 func resume() -> void:
  state="play"; clear_panel(); panel.hide(); hud.show()
 func clear_controls() -> void:
@@ -293,7 +292,7 @@ func _process(dt: float) -> void:
   if next_chunk<=0:
    var chunk: Dictionary=maker.chunk(course_seed,chunk_index)
    for obj: Dictionary in chunk.objects:
-    obj.y+=next_chunk-120; objects.append(obj)
+    obj.y+=next_chunk+rider_y()-Chunks.SPAWN_LEAD; objects.append(obj)
    next_chunk+=1280; chunk_index+=1
   for obj: Dictionary in objects:
    var old_y: float=float(obj.y)
@@ -336,6 +335,7 @@ func _process(dt: float) -> void:
   while wake.get_point_count()>15: wake.remove_point(0)
   hud.text="%s    ·    %s pts%s" % [run.shells,run.trick_points+run.shells*10,("    x%s" % run.combo) if run.combo>1 else ""]
   hint.text=("Tap in the air to spin!" if spin_hint else "Drag to steer · lift to keep your line") if not save.data.tutorial_done else ("SHALLOWS — TURN!" if run.x<132 or run.x>588 else "")
+  if run.elapsed<Model.Pacing.WARMUP: hint.text="Drag to steer · lift to keep your line"
   run_spins+=float(run.events.get("spins",0))
   run.events.distance=run.distance; run.events.run_spins=run_spins; run.events.run_shells=run.shells
   var completed: Array=Missions.update(save.data,run.events)
@@ -416,7 +416,7 @@ func _draw() -> void:
  if state in ["play","crash"]:
   if not run.dead:
    # Projected course sits ahead of the board; wake stays behind it.
-   var course: Vector2=Vector2(sin(run.heading),-cos(run.heading))
+   var course: Vector2=Vector2(sin(run.visual_heading),-cos(run.visual_heading))
    var origin: Vector2=Vector2(run.x,rider_y())+course*48
    var tip: Vector2=origin+course*76
    var clearance: float=1.0

@@ -1,4 +1,6 @@
-# Drag distance fidelity (supersedes the earlier lead-clipped comparison)
+# Drag distance fidelity (historical comparison)
+
+**Current calm-start update:** see [measured QA](calm-start-qa.md). The old physical40° velocity cap is removed;318px/s lateral authority now also holds at260px/s and in156px/s shallows. Board/arrow straighten at20px/s with35px/s hysteresis and visual50° cap. Finger input now uses1-Euro plus100ms hold lock/10px unlock.32 fidelity cases pass (now includes260px/s),16/16 reversals, zero overshoot and identical speed curves. The tables below retain the previous tuning comparison, not the current hold-noise result.
 
 Baseline b6f347a; deterministic 120 Hz ease-in-out (half cosine), finger held
 for the remainder of a three-second trace. Start x=300 avoids shores. Coast is
