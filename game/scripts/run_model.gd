@@ -3,6 +3,8 @@ extends RefCounted
 const START_SPEED: float = 380.0
 const MAX_SPEED: float = 700.0
 const SHORE: float = 94.0
+const AIR_DRIFT: float = 0.25
+const AIR_MARGIN: float = 110.0
 var x: float = 360.0
 var heading: float = 0.698
 var tack: int = 1
@@ -48,9 +50,13 @@ func tick(dt: float) -> void:
  speed = lerpf(START_SPEED,MAX_SPEED,minf(elapsed/90.0,1.0)) * (1.5 if gust > 0 else 1.0)
  if x < SHORE+38 or x > 720-SHORE-38: speed *= 0.6
  heading = lerp_angle(heading,float(tack)*0.698,minf(dt/0.15,1.0))
- x += sin(heading)*speed*dt
+ # In the air the rider flies mostly forward: sideways drift is damped and kept
+ # clear of the shallows, so a long (golden) jump can't carry you into the beach.
+ var lateral: float = AIR_DRIFT if air > 0 else 1.0
+ x += sin(heading)*speed*dt*lateral
+ if air > 0: x = clampf(x,SHORE+AIR_MARGIN,720-SHORE-AIR_MARGIN)
  distance += cos(heading)*speed*dt/10.0
- if x < SHORE or x > 720-SHORE: crash("Beached")
+ if air <= 0 and (x < SHORE or x > 720-SHORE): crash("Beached")
  if air > 0:
   if queued > 0 and spin <= 0: spin = 0.0001; queued -= 1
   if spin > 0:

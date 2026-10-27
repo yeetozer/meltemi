@@ -16,6 +16,15 @@ func _initialize() -> void:
  r=Model.new(); r.collide("rock_big"); check(r.dead,"obstacle game over")
  r=Model.new(); r.x=80; r.tick(0.01); check(r.reason=="Beached","beached")
  r=Model.new(); r.shells=3; r.distance=12.3; r.combo=2; r.launch(); r.air=0.01; r.spins=1; r.tick(0.02); check(r.trick_points==200 and r.combo==3 and r.score()==242,"score combo math")
+ var air_ok: bool=true
+ for start_x: float in [140.0,360.0,580.0]:
+  for t: int in [1,-1]:
+   r=Model.new(); r.elapsed=90; r.x=start_x; r.tack=t; r.heading=t*0.698; r.tick(0.0); r.launch(true)
+   var steps: int=0
+   while r.air>0 and steps<600: r.tick(1.0/60); steps+=1
+   air_ok=air_ok and not r.dead and r.x>=Model.SHORE+Model.AIR_MARGIN-0.01 and r.x<=720-Model.SHORE-Model.AIR_MARGIN+0.01
+   r.tap(); var tk: int=r.tack; air_ok=air_ok and tk==-t
+ check(air_ok,"golden jump at max speed never beaches; tap after landing switches")
  var maker: ChunkMaker=Chunks.new(); var gaps: bool=true
  for i in range(500):
   var c: Dictionary=maker.chunk(9182,i)
