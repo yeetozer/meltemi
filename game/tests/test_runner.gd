@@ -8,30 +8,81 @@ func check(ok: bool,name_: String) -> void:
  if ok: passed+=1; print("PASS ",name_)
  else: failed+=1; printerr("FAIL ",name_)
 func _initialize() -> void:
- var r: RunModel=Model.new(); r.set_held(true)
- for i in range(30): r.tick(1.0/60)
- check(absf(r.heading-Model.CARVE_ANGLE)<0.02,"hold reaches right heading in half second")
- r.set_held(false)
- for i in range(30): r.tick(1.0/60)
- check(absf(r.heading+Model.CARVE_ANGLE)<0.02,"release returns left")
- check(r.events.get("tacks",0)==2,"water transitions count one tack each")
- r=Model.new(); r.set_held(true); r.tick(0.1)
- check(r.heading>-Model.CARVE_ANGLE and r.heading<0 and absf(r.heading+Model.CARVE_ANGLE)<=Model.TURN_RATE*0.1+0.001,"short pulse is partial and rate limited")
+ var controller=load("res://scripts/main.gd").new()
+ var key: InputEventKey=InputEventKey.new()
+ key.keycode=KEY_LEFT; key.pressed=true
+ controller.state="play"; controller._unhandled_input(key)
+ check(controller.key_left and controller.run.steering,"keyboard steers during play")
+ controller.state="pause"; controller.clear_controls()
+ check(not controller.key_left and not controller.run.steering,"pause clears keyboard steering")
+ var ignored: bool=true
+ for menu: String in ["pause","title","shop","over"]:
+  controller.state=menu
+  for code: int in [KEY_LEFT,KEY_RIGHT,KEY_A,KEY_D]:
+   key.keycode=code; controller._unhandled_input(key)
+   ignored=ignored and not controller.key_left and not controller.key_right and not controller.run.steering
+ check(ignored,"menu keyboard presses cannot re-arm steering")
+ controller.state="play"
+ check(not controller.key_left and not controller.key_right and not controller.run.steering,"resume has no stale keyboard hold")
+ controller.free()
+ var r: RunModel=Model.new()
+ for direction: float in [-1.0,1.0]:
+  r=Model.new(); r.begin_steering(200)
+  check(r.x==360 and r.target_x==360,"touch down never snaps")
+  var capped: bool=true
+  for i in range(100):
+   r.drag_to(200+direction*float(i+1))
+   var previous: float=r.x
+   r.tick(1.0/60)
+   capped=capped and absf(r.x-previous)*60<=r.speed*sin(Model.MAX_HEADING)+0.001
+   if i==4: check(r.heading*direction>0,"heading follows drag")
+  check(absf(r.x-(360+direction*200))<5,"100px slow finger drag follows 200px without deadzone loss")
+  check(capped,"lateral carve speed capped")
+  for i in range(60): r.tick(1.0/60)
+  check(absf(r.heading)<0.01,"stationary finger settles straight")
+  r.end_steering()
+  check(absf(r.heading)<0.01,"stationary release does not revive an old carve")
+ r=Model.new(); r.begin_steering(0)
+ for i in range(10): r.drag_to(float(i+1)*3); r.tick(1.0/60)
+ var commanded: float=r.heading
+ r.target_x=r.x; r.tick(1.0/60) # Zero-velocity catch-up just before lift.
+ r.end_steering()
+ check(absf(r.heading-commanded)<0.001,"release ignores zero-velocity catch-up frame")
+ var released: float=r.heading
+ for i in range(400): r.tick(1.0/60)
+ check(r.heading==released and r.reason=="Beached","release holds heading and eventually beaches")
+ r=Model.new(); r.begin_steering(0); r.drag_to(100); r.tick(1.0/60)
+ r.drag_to(-100); r.tick(1.0/60)
+ check(r.events.get("tacks",0)==1,"opposite heading hysteresis counts tack")
+ r=Model.new(); r.begin_steering(300); r.drag_to(302)
+ check(r.target_x==360,"drag deadzone ignores jitter")
+ r.drag_to(2000)
+ r.drag_to(1990)
+ check(absf(r.target_x-r.x)<=Model.TARGET_LEAD*r.speed*sin(Model.MAX_HEADING),"target lead bounded to 80ms")
+ r=Model.new(); r.x=625; r.begin_steering(0); r.drag_to(1000)
+ r.drag_to(999)
+ var before_reverse: float=r.x
+ r.tick(1.0/60)
+ check(r.x<before_reverse,"shore clamp reverses within one frame")
+ r=Model.new(); r.launch(true); r.begin_steering(0); r.drag_to(30)
+ var air_previous: float=r.x
+ r.tick(1.0/60)
+ check(absf(r.heading-atan2((r.x-air_previous)*60,r.speed))<0.00001,"air heading uses actual damped lateral velocity")
  r=Model.new(); r.launch(); r.x=360
  for i in range(60): r.x=360; r.tick(1.0/60)
  check(r.air==0 and not r.dead,"wave airborne lands")
  r=Model.new(); r.launch(); r.air=0.01; r.spin=0.5; r.tick(0.02); check(r.dead,"mid spin wipeout")
  r=Model.new(); r.collide("rock_big"); check(r.dead,"obstacle game over")
  r=Model.new(); r.x=80; r.tick(0.01); check(r.reason=="Beached","beached")
- r=Model.new(); r.shells=3; r.distance=12.3; r.combo=2; r.launch(); r.air=0.01; r.spins=1; r.tick(0.02); check(r.trick_points==200 and r.combo==3 and r.score()==242,"score combo math")
+ r=Model.new(); r.shells=3; r.distance=12.3; r.combo=2; r.launch(); r.air=0.01; r.spins=1; r.tick(0.02); check(r.trick_points==200 and r.combo==3 and r.score()==243,"score combo math")
  var air_ok: bool=true
  for start_x: float in [140.0,360.0,580.0]:
   for t: int in [1,-1]:
-   r=Model.new(); r.elapsed=90; r.x=start_x; r.set_held(t==1); r.heading=t*0.698; r.tick(0.0); r.launch(true)
+   r=Model.new(); r.elapsed=90; r.x=start_x; r.heading=t*0.698; r.tick(0.0); r.launch(true)
    var steps: int=0
    while r.air>0 and steps<600: r.tick(1.0/60); steps+=1
    air_ok=air_ok and not r.dead and r.x>=Model.SHORE+Model.AIR_MARGIN-0.01 and r.x<=720-Model.SHORE-Model.AIR_MARGIN+0.01
-   r.set_held(t!=1); var tk: int=r.tack; air_ok=air_ok and tk==-t
+   r.begin_steering(0); air_ok=air_ok and r.target_x==r.x
  check(air_ok,"golden jump at max speed never beaches; press/release after landing steers")
  var maker: ChunkMaker=Chunks.new(); var gaps: bool=true
  for i in range(500):

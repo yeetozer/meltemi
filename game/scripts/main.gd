@@ -8,7 +8,8 @@ var daily: bool=false
 var course_seed: int=81273
 var daily_date: String=""
 var gameplay_touches: Dictionary={}
-var space_held: bool=false
+var key_left: bool=false
+var key_right: bool=false
 var touch_id: int=-1
 var touch_origin: Vector2
 var touch_position: Vector2
@@ -126,7 +127,7 @@ func _ready() -> void:
  distance_label=Label.new(); distance_label.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER; distance_label.add_theme_font_size_override("font_size",48); ui.add_child(distance_label)
  shell_icon=TextureRect.new(); shell_icon.texture=AssetLib.texture("ui/icon_shell.png",Vector2(48,48)); shell_icon.expand_mode=TextureRect.EXPAND_IGNORE_SIZE; shell_icon.size=Vector2(32,32); ui.add_child(shell_icon)
  pause_button=Button.new(); pause_button.text="Pause";  pause_button.expand_icon=true; pause_button.custom_minimum_size=Vector2(100,64); pause_button.pressed.connect(func() -> void: show_menu("pause")); ui.add_child(pause_button)
- hint=Label.new(); hint.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER; hint.add_theme_font_size_override("font_size",24); ui.add_child(hint)
+ hint=Label.new(); hint.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER; hint.add_theme_font_size_override("font_size",22); ui.add_child(hint)
  ambient=AudioStreamPlayer.new(); ambient.stream=AssetLib.sound("amb_ocean"); ambient.volume_db=-16; add_child(ambient); ambient.finished.connect(func() -> void: ambient.play()); ambient.play()
  for arg: String in OS.get_cmdline_user_args():
   if arg.begins_with("--capture="): snap=arg.trim_prefix("--capture=")
@@ -138,7 +139,7 @@ func _ready() -> void:
  if snap in ["riding","airborne","game_over","airborne_flip","airborne_grab","landing","game_over_daily"]:
   start()
   if snap=="game_over_daily": daily=true
-  if snap=="riding": run.combo=3
+  if snap=="riding": run.combo=3; save.data.tutorial_done=false
   if snap=="airborne": run.launch(true); run.air=1.1; run.spin=0.35
   if snap in ["game_over","game_over_daily"]: run.crash("A spectacular splash"); finish()
 func audio(name_: String) -> void:
@@ -192,15 +193,12 @@ func start() -> void:
 func resume() -> void:
  state="play"; clear_panel(); panel.hide(); hud.show()
 func clear_controls() -> void:
- gameplay_touches.clear(); space_held=false; touch_id=-1; touch_air=false
- run.set_held(false)
-func sync_steering() -> void:
- var was_held: bool=run.held
- run.set_held(space_held or not gameplay_touches.is_empty())
- if was_held!=run.held and run.air<=0 and state=="play":
-  actions+=1; audio("tack"); turn_juice=0.22
-  spray.position=Vector2(run.x,rider_y()); spray.restart(); spray.emitting=true
-  Input.vibrate_handheld(12)
+ gameplay_touches.clear(); key_left=false; key_right=false; touch_id=-1; touch_air=false
+ run.end_steering(false)
+func anchor_touch(id: int, pos: Vector2, allow_trick: bool) -> void:
+ touch_id=id; touch_origin=pos; touch_position=pos; touch_travel=0; touch_age=0; gesture_done=false
+ touch_air=allow_trick and run.air>0
+ run.begin_steering(pos.x)
 func over_button(pos: Vector2) -> bool:
  if pause_button.visible and pause_button.get_global_rect().grow(8).has_point(pos): return true
  if panel.visible:
@@ -215,34 +213,44 @@ func _input(event: InputEvent) -> void:
  if event is InputEventScreenTouch and not event.pressed and gameplay_touches.has(event.index):
   _unhandled_input(event); get_viewport().set_input_as_handled()
 func _unhandled_input(event: InputEvent) -> void:
- if event is InputEventScreenDrag and event.index==touch_id:
+ if event is InputEventScreenDrag and gameplay_touches.has(event.index):
+  gameplay_touches[event.index]=event.position
+  if event.index!=touch_id: return
   touch_position=event.position
+  run.drag_to(event.position.x)
   touch_travel=maxf(touch_travel,touch_origin.distance_to(touch_position))
-  if touch_air and not gesture_done and touch_origin.y-touch_position.y>50:
+  var displacement: Vector2=touch_position-touch_origin
+  if absf(displacement.x)>=15 and absf(displacement.x)>=1.5*absf(displacement.y):
+   gesture_done=true; run.grab(false)
+  if touch_air and not gesture_done and touch_age<=0.3 and displacement.y<=-55 and -displacement.y>=1.73*absf(displacement.x):
    run.grab(false); run.backflip(); gesture_done=true; audio("trick")
  elif event is InputEventScreenTouch:
   if event.pressed:
    if gameplay_touches.has(event.index) or over_button(event.position): return
    if state=="title": start()
    if state!="play": return
-   gameplay_touches[event.index]=true; unhandled_touches+=1; sync_steering()
-   if touch_id<0 or (run.air>0 and not touch_air):
-    touch_id=event.index; touch_origin=event.position; touch_position=event.position; touch_travel=0; touch_age=0; gesture_done=false
-    touch_air=run.air>0
+   gameplay_touches[event.index]=event.position; unhandled_touches+=1
+   if touch_id<0: anchor_touch(event.index,event.position,true)
    get_viewport().set_input_as_handled()
   elif gameplay_touches.has(event.index):
-   gameplay_touches.erase(event.index); sync_steering()
+   gameplay_touches.erase(event.index)
    if event.index==touch_id:
-    if not event.canceled and run.air>0 and touch_air and not gesture_done and touch_age<0.2 and maxf(touch_travel,touch_origin.distance_to(event.position))<40: run.tap(); audio("trick")
-    run.grab(false); touch_id=-1; touch_air=false
+    if not event.canceled and run.air>0 and touch_air and not gesture_done and touch_age<=0.18 and maxf(touch_travel,touch_origin.distance_to(event.position))<=15: run.tap(); audio("trick")
+    run.grab(false); touch_id=-1; touch_air=false; run.end_steering()
+    if not gameplay_touches.is_empty():
+     var next_id: int=int(gameplay_touches.keys()[0])
+     anchor_touch(next_id,gameplay_touches[next_id],false)
  elif event is InputEventKey and not event.echo:
-  if event.keycode==KEY_SPACE:
-   if event.pressed and state=="title": start()
-   if state!="play": return
-   var key_touch: InputEventScreenTouch=InputEventScreenTouch.new()
-   key_touch.index=1000000; key_touch.pressed=event.pressed; key_touch.position=Vector2(360,900)
-   _unhandled_input(key_touch)
+  if event.keycode in [KEY_LEFT,KEY_A]: key_left=event.pressed and state=="play"
+  elif event.keycode in [KEY_RIGHT,KEY_D]: key_right=event.pressed and state=="play"
+  elif event.keycode==KEY_SPACE and event.pressed:
+   if state=="title": start()
+   elif state=="play" and run.air>0: run.tap()
   elif event.pressed and event.keycode==KEY_ESCAPE and state=="play": show_menu("pause")
+  if state=="play" and touch_id<0:
+   if key_left or key_right:
+    if not run.steering: run.begin_steering(0)
+   else: run.end_steering()
 func rider_y() -> float: return get_viewport_rect().size.y*0.68
 func _notification(what: int) -> void:
  if what in [NOTIFICATION_APPLICATION_FOCUS_OUT,NOTIFICATION_APPLICATION_PAUSED]:
@@ -256,7 +264,7 @@ func _process(dt: float) -> void:
  popups=popups.filter(func(p: Dictionary) -> bool: return p.age<1.1)
  if state=="play" and run.air>0 and touch_id>=0 and touch_air:
   touch_age+=real_dt
-  if touch_age>=0.2 and touch_travel<40 and not gesture_done:
+  if touch_age>=0.35 and touch_travel<=15 and not gesture_done:
    run.grab(true); gesture_done=true
  if slow_age>=0:
   slow_age+=real_dt
@@ -277,6 +285,8 @@ func _process(dt: float) -> void:
    if child is Button: child.custom_minimum_size=Vector2(76,70)
   var before_air: float=run.air
   var before_distance: float=run.distance
+  if touch_id<0 and (key_left or key_right):
+   run.target_x=clampf(run.target_x+(float(key_right)-float(key_left))*Model.KEYBOARD_SPEED*dt,Model.SHORE-Model.TARGET_MARGIN,720-Model.SHORE+Model.TARGET_MARGIN)
   run.tick(dt)
   var scroll: float=(run.distance-before_distance)*10
   next_chunk-=scroll
@@ -313,6 +323,7 @@ func _process(dt: float) -> void:
   if before_air<=0 and run.air>0: audio("jump"); spin_hint=true; spray.position=rider.position; spray.restart(); spray.emitting=true
   if run.landed:
    touch_air=false; run.grab(false)
+   if touch_id>=0: anchor_touch(touch_id,touch_position,false)
    landing_juice=0.3
    Input.vibrate_handheld(80 if run.dead else (35 if run.perfect else 20))
    if not run.dead:
@@ -324,7 +335,7 @@ func _process(dt: float) -> void:
   if run.air<=0: wake.add_point(Vector2(run.x,rider_y()+25))
   while wake.get_point_count()>15: wake.remove_point(0)
   hud.text="%s    ·    %s pts%s" % [run.shells,run.trick_points+run.shells*10,("    x%s" % run.combo) if run.combo>1 else ""]
-  hint.text=("Tap in the air to spin!" if spin_hint else "Hold to carve right, let go to carve left") if not save.data.tutorial_done else ("SHALLOWS — TURN!" if run.x<132 or run.x>588 else "")
+  hint.text=("Tap in the air to spin!" if spin_hint else "Drag to steer · lift to keep your line") if not save.data.tutorial_done else ("SHALLOWS — TURN!" if run.x<132 or run.x>588 else "")
   run_spins+=float(run.events.get("spins",0))
   run.events.distance=run.distance; run.events.run_spins=run_spins; run.events.run_shells=run.shells
   var completed: Array=Missions.update(save.data,run.events)
@@ -353,14 +364,14 @@ func _process(dt: float) -> void:
  get_viewport().canvas_transform=Transform2D(Vector2(zoom_,0),Vector2(0,zoom_),center_*(1-zoom_)+shake_)
  var scale_: float=1+air_height*0.6 if not save.data.reduce_motion else 1
  var pos: Vector2=Vector2(run.x,rider_y()) if state in ["play","crash"] else Vector2(360,height*0.88)
- rider.position=pos+Vector2(0,-air_height*60); rider.scale=Vector2.ONE*scale_*1.5; rider.rotation=run.heading+(run.spin*TAU if run.air>0 else 0)
+ rider.position=pos+Vector2(0,-air_height*60); rider.scale=Vector2.ONE*scale_*1.5; rider.rotation=run.visual_heading+(run.spin*TAU if run.air>0 else 0)
  rider.texture=AssetLib.texture("sprites/rider_wipeout.png" if run.dead else "sprites/rider.png",Vector2(72,72))
  kite.texture=AssetLib.texture("sprites/kite_"+str(save.data.selected)+".png",Vector2(140,70)); kite.position=kite.position.lerp(pos+Vector2(sin(run.heading)*170,-190-air_height*90),minf(dt/0.35,1)); kite.scale=Vector2.ONE*scale_*1.2; kite.rotation=-run.heading*0.25
  shadow.position=pos+LIGHT_OFFSET*(1+air_height*2); shadow.scale=Vector2(0.65,0.65)*(1-air_height*0.35); shadow.color.a=0.13-air_height*0.04
  for i in range(2): lines[i].points=PackedVector2Array([rider.to_global(Vector2(-1+i*24,-19)),kite.position+Vector2((i*2-1)*62,23).rotated(kite.rotation)*scale_*1.2])
  queue_redraw()
  if web_debug:
-  JavaScriptBridge.eval("window.__meltemi=%s" % JSON.stringify({"state":state,"tack":run.tack,"held":run.held,"heading":snappedf(run.heading,0.001),"x":snappedf(run.x,0.1),"raw":raw_touches,"unhandled":unhandled_touches,"actions":actions,"dead":run.dead,"trick":("flip" if run.flip>0 else "spin" if run.spin>0 else "none"),"grab":run.grabbing,"missions":save.data.missions}))
+  JavaScriptBridge.eval("window.__meltemi=%s" % JSON.stringify({"state":state,"tack":run.tack,"held":run.held,"steering":run.steering,"target_x":run.target_x,"heading":snappedf(run.heading,0.001),"x":snappedf(run.x,0.1),"raw":raw_touches,"unhandled":unhandled_touches,"actions":actions,"dead":run.dead,"trick":("flip" if run.flip>0 else "spin" if run.spin>0 else "none"),"grab":run.grabbing,"missions":save.data.missions}))
  if snap!="" and not capture_done:
   snap_frames+=1
   if snap_frames==8: capture()
@@ -403,6 +414,20 @@ func _draw() -> void:
   draw_texture_rect(kite.texture,Rect2(-70,-35,140,70),false,Color(0.08,0.27,0.32,0.045))
   draw_set_transform(Vector2.ZERO)
  if state in ["play","crash"]:
+  if not run.dead:
+   # Projected course sits ahead of the board; wake stays behind it.
+   var course: Vector2=Vector2(sin(run.heading),-cos(run.heading))
+   var origin: Vector2=Vector2(run.x,rider_y())+course*48
+   var tip: Vector2=origin+course*76
+   var clearance: float=1.0
+   for ahead: Dictionary in objects:
+    var gap: float=rider_y()-float(ahead.y)
+    if ahead.kind not in ["shell","starfish","gust"] and gap>=0 and gap<180 and absf(float(ahead.x)-run.x)<float(ahead.size.x)*0.5+45:
+     clearance=minf(clearance,clampf((gap-120.0)/60.0,0.0,1.0))
+   var foam: Color=Color(1,1,1,0.42*clearance*(1.0-0.85*minf(run.air*5,1)))
+   draw_line(origin,tip,foam,2.5,true)
+   draw_line(tip,tip-course.rotated(0.55)*12,foam,2.5,true)
+   draw_line(tip,tip-course.rotated(-0.55)*12,foam,2.5,true)
   if run.air<=0 and not run.dead:
    var heel: Vector2=Vector2(run.x,rider_y())
    for j in range(5):
@@ -435,7 +460,22 @@ func _draw() -> void:
      for side_: int in [-1,1]:
       draw_line(center+Vector2(side_*size_.x*0.3,size_.y*0.36),center+Vector2(side_*size_.x*0.65,size_.y*0.5+22+pulse),Color(1,1,1,0.30),5,true)
       draw_line(center+Vector2(side_*size_.x*0.3,size_.y*0.36),center+Vector2(side_*size_.x*0.65,size_.y*0.5+22+pulse),Color(1,1,1,0.6),1.5,true)
-   draw_texture_rect(tex_,Rect2(center+Vector2(0,bob)-size_/2,size_),false)
+   if obj.kind in ["wave","wave_gold"]:
+    # Crest pivot stays at collision center while only the face breathes.
+    var swell: float=0.0 if save.data.reduce_motion else sin(clock*1.7+float(obj.x)*0.01)
+    var gold_wave: bool=obj.kind=="wave_gold"
+    var stretch: float=(1.12 if gold_wave else 1.0)*(1.0+swell*0.025)
+    draw_texture_rect(tex_,Rect2(center-Vector2(150,31*stretch),Vector2(300,(116 if gold_wave else 104)*stretch)),false,Color(1,1,1,0.98+swell*0.02))
+    if not save.data.reduce_motion:
+     for fleck: int in range(5 if gold_wave else 3):
+      var along: float=fposmod(float(fleck)*63+clock*9,218)-109
+      var lip_y: float=sin((along+35)*0.018)*4
+      var foam_pos: Vector2=center+Vector2(along,lip_y)
+      draw_line(foam_pos,foam_pos+Vector2(4,1),Color(1,1,0.86 if gold_wave else 1.0,0.42),2,true)
+      if gold_wave:
+       draw_line(foam_pos-Vector2(0,3),foam_pos+Vector2(0,3),Color(1,0.97,0.82,0.7),1,true)
+   else:
+    draw_texture_rect(tex_,Rect2(center+Vector2(0,bob)-size_/2,size_),false)
  if state not in ["play","crash"]:
   draw_rect(Rect2(115,maxf(safe_top,height*0.065),490,panel.size.y+45),Color("f4ebdd"))
 

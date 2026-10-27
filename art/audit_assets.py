@@ -11,6 +11,11 @@ load=fn('cairo_image_surface_create_from_png',[C.c_char_p],C.c_void_p);data=fn('
 checks=[]
 for a in manifest:
  p=O/a['file'];raw=p.read_bytes();w,h=struct.unpack('>II',raw[16:24]);assert (w,h)==(a['w'],a['h']);assert (R/'src'/(p.stem+'.svg')).exists()
+ if p.stem in ['wave','wave_gold']:
+  assert (w,h)==((300,104) if p.stem=='wave' else (300,116))
+  # main.gd uses (150,31) crest pivot; never center these tall sprites on the hitbox.
+  draw_code=(R.parent/'game/scripts/main.gd').read_text()
+  assert 'center-Vector2(150,31*stretch)' in draw_code
  s=load(str(p).encode());b=C.string_at(data(s),stride(s)*h);alpha=b[3::4];assert (min(alpha)==255 if p.stem=='icon' else min(alpha)==0);destroy(s)
  checks.append({'file':a['file'],'size':f'{w}x{h}','alpha_min':min(alpha),'alpha_max':max(alpha)})
 for p in sorted((O/'audio').glob('*.wav')):

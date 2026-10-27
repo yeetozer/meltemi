@@ -86,13 +86,13 @@
   },
   {
     "file": "sprites/wave.png",
-    "w": 256,
-    "h": 48
+    "w": 300,
+    "h": 104
   },
   {
     "file": "sprites/wave_gold.png",
-    "w": 256,
-    "h": 48
+    "w": 300,
+    "h": 116
   },
   {
     "file": "sprites/splash.png",

@@ -63,12 +63,30 @@ for i in range(10):
 add('starfish',40,40,f'<polygon points="{" ".join(pts)}" fill="{terra}" stroke="{lemon}" stroke-width="2" stroke-linejoin="round"/>'+ellipse(19,18,3,3,lemon))
 add('gust',80,80,line('M8 29 L53 29 C79 29 72 5 58 14 M14 42 L65 42 C82 42 75 65 63 57 M7 55 L38 55 C56 55 49 73 40 66','#FFFFFF',4)+line('M14 35 L41 35',sea,2))
 def wave(gold=False):
- color=lemon if gold else '#FFFFFF';b=path('M2 26 Q12 12 64 21 T128 21 T192 21 Q244 12 254 26 Q247 39 224 37 Q208 33 192 43 T128 43 T64 43 Q18 34 2 26Z',sea,'none',extra='opacity=".18"')
- b+=path('M0 14 Q32 -4 64 14 T128 14 T192 14 T256 14 L256 27 Q224 9 192 27 T128 27 T64 27 T0 27Z',color)
- b+=line('M0 33 Q32 15 64 33 T128 33 T192 33 T256 33',cream,2)
- if gold:b+=path('M107 5 L110 12 L117 15 L110 18 L107 25 L104 18 L97 15 L104 12Z','#FFFFFF')
+ # Rider approaches from +y; crest pivot is (150, 28), not sprite center.
+ # Matte falling water, broken whitewater lip and a dissolved trailing toe.
+ mid='#F2B93B' if gold else '#49AEAF'
+ light='#FFF7D0' if gold else '#BDE9DC'
+ shadow='#B97E2E' if gold else '#1F6F8B'
+ b=f'<defs><linearGradient id="slope" x1="0" y1="0" x2="0" y2="1"><stop stop-color="{light}"/><stop offset=".38" stop-color="{mid}" stop-opacity=".86"/><stop offset=".90" stop-color="{mid}" stop-opacity=".64"/><stop offset=".97" stop-color="{mid}" stop-opacity=".58"/><stop offset="1" stop-color="{mid}" stop-opacity="0"/></linearGradient><linearGradient id="back" x1="0" y1="0" x2="0" y2="1"><stop stop-color="{deep}" stop-opacity="0"/><stop offset="1" stop-color="{deep}" stop-opacity=".23"/></linearGradient></defs>'
+ b+=path('M20 25 Q90 -2 180 10 Q246 5 283 22 L276 32 Q170 19 28 38Z','url(#back)')
+ b+=path('M24 24 Q95 18 155 28 Q217 37 273 23 C283 44 280 68 261 84 Q218 93 170 87 Q96 99 48 80 Q18 63 24 24Z','url(#slope)')
+ # No detached toe stroke: the organic face contour owns its tight falloff.
+ if gold: b+=path('M41 58 Q142 74 260 57','none',shadow,8,extra='opacity=".06"')
+ for x,y in [(58,31),(89,28),(126,32),(165,36),(202,36),(240,32)]:
+  b+=path(f'M{x} {y+5} Q{x-7} {y+22} {x-3} {y+43}','none',light,1.8,extra='opacity=".22"')
+ crest='M25 26 Q33 19 41 26 Q48 20 57 25 Q66 20 74 25 Q84 21 94 26 Q103 22 114 27 Q124 23 134 29 Q145 25 155 31 Q166 27 176 33 Q187 29 198 33 Q210 28 220 31 Q232 26 242 29 Q254 22 263 26 Q270 20 277 23'
+ if gold: b+=path('M30 31 Q94 24 155 35 Q220 43 274 28','none','#996224',1)
+ b+=path(crest,'none','#E0F5E9',9 if gold else 7)
+ b+=path(crest,'none','#FFFFFF',4 if gold else 3)
+ b+=path('M31 25 Q17 30 25 39 Q36 33 32 48 Q47 40 43 54 M93 27 Q86 35 96 43 L103 35 M201 32 Q194 42 204 48 L212 37','none','#F5FFF7',4)
+ b+=path('M25 37 Q26 43 22 47 L16 52 M32 46 Q35 54 31 60 L25 65 M43 51 L40 55 L36 60 M24 33 L19 37 L12 39','none','#F5FFF7',3)
+ for x,y in [(47,44),(83,36),(184,38),(232,36)]: b+=ellipse(x,y,2.2,1.4,'#F5FFF7')
+ if gold:
+  b+=path('M53 19 Q98 18 140 25 M162 25 Q214 31 256 20','none','#FFF7D0',2.5)
+  b+=path('M47 35 Q57 31 66 37 Q75 32 85 38 M123 40 Q136 35 147 43 M218 42 Q236 35 252 37','none','#F7FFF2',4)
  return b
-add('wave',256,48,wave());add('wave_gold',256,48,wave(True))
+add('wave',300,104,wave());add('wave_gold',300,116,wave(True))
 b=ellipse(48,49,30,23,'#FFFFFF','opacity=".65"')
 for i in range(11):
  a=i*math.tau/11;x=48+math.cos(a)*34;y=48+math.sin(a)*34;b+=ellipse(x,y,4,7,'#FFFFFF',f'transform="rotate({i*360/11+90} {x} {y})"')
