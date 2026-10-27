@@ -59,7 +59,7 @@ func _initialize() -> void:
  check(r.target_x==360,"drag deadzone ignores jitter")
  r.drag_to(2000)
  r.drag_to(1990)
- check(absf(r.target_x-r.x)<=Model.TARGET_LEAD*Model.LATERAL_MAX,"target lead bounded to 80ms")
+ check(absf(r.target_x-r.x)<=Model.TARGET_LEAD_MAX_PX,"target lead bounded by safety limit")
  r=Model.new(); r.x=625; r.begin_steering(0); r.drag_to(1000)
  r.drag_to(998)
  var before_reverse: float=r.x

@@ -19,12 +19,12 @@ func _initialize() -> void:
   for i in range(90):
    set_speed(r,value); r.tick(DT); curve.append(r.x)
    overshoot=overshoot or r.x>r.target_x+0.00001
-   if r.x>=360+0.9*24 and t90==99: t90=float(i+1)*DT
+   if r.x>=360+0.9*120 and t90==99: t90=float(i+1)*DT
   if baseline.is_empty(): baseline=curve
   var error: float=0
   for i in range(curve.size()): error=maxf(error,absf(curve[i]-baseline[i]))
-  check(error<=24*0.05,"step curve speed-independent "+str(value))
-  check(not overshoot and t90<=0.25,"step no overshoot and t90 <=250ms "+str(value))
+  check(error<=120*0.05,"step curve speed-independent "+str(value))
+  check(not overshoot and t90<=0.6,"step no overshoot and t90 <=600ms "+str(value))
   r=Model.new(); r.speed=value; r.begin_steering(0)
   var rng=RandomNumberGenerator.new(); rng.seed=9182
   var sum_sq: float=0

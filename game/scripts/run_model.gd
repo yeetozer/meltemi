@@ -11,7 +11,7 @@ const DRAG_GAIN: float = 2.0 # test range 1.5-2.5
 # Position follow time constant, seconds.
 const FOLLOW_TAU: float = 0.035
 # Speed-independent lateral cap, logical px/s (test range 260-340).
-const LATERAL_MAX: float = 300.0
+const LATERAL_MAX: float = 318.0
 # Maximum lateral acceleration, logical px/s squared.
 const LATERAL_ACCEL: float = 2400.0
 # Released velocity fraction of the lateral cap.
@@ -30,8 +30,9 @@ var command_velocity: float = 0.0
 const HEADING_SMOOTH: float = 0.08
 # Accumulated touch slop; disabled after crossing it until the next touch.
 const DRAG_DEADZONE: float = 2.0
-# Seconds of maximum lateral travel allowed ahead of the rider.
-const TARGET_LEAD: float = 0.08
+# Safety only: normal swipes retain their full gain-scaled distance.
+const TARGET_LEAD_MAX_PX: float = 256.0
+var drag_direction: float = 0.0
 var slop_crossed: bool = false
 var last_finger: float = 0.0
 var saturated_direction: float = 0.0
@@ -90,7 +91,7 @@ func near_miss(id: int) -> bool:
  near_ids[id]=true; trick_points+=25; event("near"); return true
 func begin_steering(finger_x: float) -> void:
  steering=true; held=true; anchor_x=x; target_x=x; anchor_finger=finger_x
- slop_crossed=false; last_finger=finger_x; saturated_direction=0; command_age=1; command_velocity=0; command_pending=false
+ slop_crossed=false; last_finger=finger_x; saturated_direction=0; drag_direction=0; command_age=1; command_velocity=0; command_pending=false
 func drag_to(finger_x: float) -> void:
  if not steering: return
  var delta: float=finger_x-last_finger
@@ -99,12 +100,12 @@ func drag_to(finger_x: float) -> void:
   if absf(finger_x-anchor_finger)<=DRAG_DEADZONE: return
   slop_crossed=true
  if delta!=0: command_age=0; command_pending=true
- # Reversal after saturation discards any outstanding lead, not finger travel.
- if saturated_direction*delta<0:
+ # Rebase real backlog on reversal; settled +/-1.5px noise must not ratchet anchors.
+ if drag_direction*delta<0 and (saturated_direction!=0 or absf(target_x-x)>SETTLE_RADIUS+3.0*DRAG_GAIN):
   anchor_x=x; anchor_finger=finger_x-delta; saturated_direction=0
+ if delta!=0: drag_direction=signf(delta)
  var desired: float=anchor_x+(finger_x-anchor_finger)*DRAG_GAIN
- var lead: float=TARGET_LEAD*LATERAL_MAX
- target_x=clampf(clampf(desired,x-lead,x+lead),SHORE-TARGET_MARGIN,720-SHORE+TARGET_MARGIN)
+ target_x=clampf(clampf(desired,x-TARGET_LEAD_MAX_PX,x+TARGET_LEAD_MAX_PX),SHORE-TARGET_MARGIN,720-SHORE+TARGET_MARGIN)
  if target_x!=desired:
   saturated_direction=signf(desired-x)
   anchor_x=target_x; anchor_finger=finger_x
@@ -149,7 +150,7 @@ func tick(dt: float) -> void:
  var cap: float = minf(LATERAL_MAX,speed*tan(MAX_HEADING))
  var vx: float = clampf(lateral_velocity,-cap,cap)
  if steering:
-  target_x=clampf(target_x,x-LATERAL_MAX*TARGET_LEAD,x+LATERAL_MAX*TARGET_LEAD)
+  # drag_to applies the safety bound; never consume queued finger distance here.
   var error: float=target_x-x
   # Soft deadband removes stationary thumb noise; braking bound prevents overshoot.
   var travel: float=signf(error)*maxf(0,absf(error)-SETTLE_RADIUS)

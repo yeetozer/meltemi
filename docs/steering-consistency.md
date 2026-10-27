@@ -1,71 +1,68 @@
-# Steering deterministic comparison
+# Drag distance fidelity (supersedes the earlier lead-clipped comparison)
 
-All runs 60 Hz, seed 9182. Step t90 uses the accepted target displacement (the anti-runaway lead clips a 60px finger step, not the full 120px gain); deadband residual is explicit. Shore includes automatic shallows and discrete collision, so it is not simply distance / initial vx.
+Baseline b6f347a; deterministic 120 Hz ease-in-out (half cosine), finger held
+for the remainder of a three-second trace. Start x=300 avoids shores. Coast is
+last sample more than 3px from settled final position, plus one sample, minus
+finger-stop time. Final expected position is gain × total finger displacement,
+not the accepted/clipped target. Tables below are at forward speed 380;
+700 and 1050 give the same final result and post-fix curves.
 
-| Speed | Phase | Target px | t90 s | Overshoot px | Settle error px | Wobble SD px | Heading RMS deg | Release vx | Shore s |
-|---|---|---|---|---|---|---|---|---|---|
-| 380 | before | 19.538 | 0.083 | 0 | 0.0 | 1.223 | 12.4175 | 244.259 | 1.183 |
-| 380 | after | 24.0 | 0.15 | 0 | 2.35 | 0.2048 | 0.8497 | 300.0 | 0.967 |
-| 540 | before | 27.764 | 0.083 | 0 | 0.0 | 1.223 | 8.9066 | 347.051 | 0.833 |
-| 540 | after | 24.0 | 0.15 | 0 | 2.35 | 0.2048 | 0.5982 | 300.0 | 0.9 |
-| 700 | before | 35.99 | 0.083 | 0 | 0.0 | 1.223 | 6.9258 | 449.881 | 0.65 |
-| 700 | after | 24.0 | 0.15 | 0 | 2.35 | 0.2048 | 0.4615 | 300.0 | 0.9 |
-| 1050 | before | 53.986 | 0.083 | 0 | 0.0 | 1.223 | 4.6483 | 674.821 | 0.433 |
-| 1050 | after | 24.0 | 0.15 | 0 | 2.35 | 0.2048 | 0.3077 | 300.0 | 0.9 |
+|Finger px|Swipe s|Expected px|Before px|Before error %|Before coast s|After px|After error %|After coast s|
+|---|---|---|---|---|---|---|---|---|
+|60.000|0.080|120.000|27.470|77.109|0.087|117.650|1.958|0.378|
+|60.000|0.150|120.000|40.062|66.615|0.067|117.650|1.958|0.317|
+|60.000|0.250|120.000|64.337|46.386|0.058|117.650|1.958|0.225|
+|60.000|0.400|120.000|96.540|19.550|0.033|117.650|1.958|0.092|
+|120.000|0.080|240.000|29.150|87.854|0.087|237.650|0.979|0.745|
+|120.000|0.150|240.000|43.473|81.886|0.075|237.650|0.979|0.683|
+|120.000|0.250|240.000|69.272|71.137|0.067|237.650|0.979|0.592|
+|120.000|0.400|240.000|108.018|54.992|0.058|237.650|0.979|0.450|
 
-## Diagnosis and implementation
+## Implementation and trade-off
 
-Baseline: `34aad73` (live build 1000.6). The same 60px finger step accepted
-19.538–53.986px of target displacement because both cap and anti-runaway lead
-scaled with forward speed. Release saved heading, multiplying sideways drift by
-forward speed and gusts. Noise after initial slop went straight through a 15ms
-follow filter; steady 1.5px uniform finger jitter produced 4.65–12.42deg physical
-heading RMS. These are measured model effects, not a claim of human approval.
+The old 24px lead clamp rebased the anchor during normal pursuit and tick also
+clipped the outstanding target: rapid finger travel was silently consumed.
+Normal drag now preserves the complete target. Shore bounds still consume excess;
+a 256px safety bound prevents runaway. This deliberately exceeds the suggested
+160px: a 120px finger flick requests 240px, so 160px would still lose distance.
+Direction reversal rebases outstanding backlog at the rider and applies the
+new delta immediately. Inside the settled noise envelope (2.35 + 2×3px), do not
+rebase unless saturated: otherwise alternating ±1.5px noise ratchets anchors.
+The deadband is intentionally not interpreted as meaningful opposite steering.
+At 2Hz, 30px amplitude, four seconds, all 16 direction reversals respond in the
+correct direction on the first physics sample (baseline also 16/16). End-of-track
+rider x before/after is 342.807/340.781 from x=360; the finger is back at zero.
+Reversal rebasing intentionally makes this cyclic waveform path-dependent; this
+is not an absolute-position or zero-net-displacement guarantee. This is a reversal test, not a
+promise to follow a 754px/s peak finger-velocity waveform without lag.
 
-`run_model.gd` now uses a 300px/s lateral cap and a fixed 24px target lead;
-acceleration-limited pursuit (2400px/s², tau 35ms), braking bound and final
-per-frame travel clamp prevent overshoot. Reversal and target arrival may override
-the acceleration ramp to avoid wrong-way travel/overshoot. A 2.35px soft target
-settling band is intentional: residual error is visible above rather than hidden.
-At 2px the noise RMS was still 1.575deg at 380px/s, so the settle band was increased.
-Gain stays 2.0. Release keeps recent meaningful velocity within 50ms; physical
-heading is atan2(vx,forward speed). Cosmetic board response is 80ms, at most 6rad/s.
-The existing heading arrow already uses physical heading and needed no change.
+LATERAL_MAX rises from 300 to 318px/s; acceleration remains 2400px/s²,
+tau 35ms, gain 2, deadband 2.35px, heading 0.698rad, slop 2px and release drift 1.
+340px/s was tested: the 380px/s forward-speed angle limit reduced lateral speed
+and produced 5.040% maximum curve divergence for 240px travel. 318 preserves
+identical open-water curves and release velocity at all tested forward speeds.
 
-At all four speeds the recorded step, sine and jitter x curves now coincide
-(the regression tolerance is 5%, not a claim of differing curves). The 60px step
-is deliberately **lead-clipped**; it does not move the rider 120px in either build.
-Shore times are equal at 540/700/1050. At 380 the final shallow strip reduces the
-40-degree physical cap below 300px/s, extending shore time to 0.967s; this is the
-explicit low-speed exception, not residual gust-dependent steering.
+**Coast <=0.35s for 120px/0.15s is NOT achieved.** Honouring 240px needs at
+least 0.706s even at constant 340px/s, before acceleration/braking; only 0.5s
+is available if swipe + coast must finish in 0.15+0.35s. Reaching that bound
+would require >480px/s (and a higher angle cap at forward speed 380), outside
+this tuning range. Preserve distance rather than hide this constraint by
+throwing away travel. The longer catch-up is a human-playtest risk.
 
-## Reproduce and evidence
+## Verification and reproduce
 
-- `game/tests/steer_probe.gd`: 60Hz, 180 frames per track and speed; seed 9182.
-  Tracks: 60px step/hold, 40px 1Hz sine, settled finger with ±1.5px uniform noise,
-  maximum carve then release from lane center, plus a gust trace.
-- Each JSON row: seconds, x, actual vx, physical heading, cosmetic board rotation,
-  target x, forward speed, dead. Noise RMS/wobble use frames 90–179.
-- Before traces were captured **before editing the model** on this branch.
-- Capture current model:
+`game/tests/steer_fidelity.gd` asserts all 24 swipes (60/120px × four durations ×
+380/700/1050), <=5% error (<=10% at 80ms), zero overshoot, <=5% curve divergence,
+and reversal. Output includes all raw scalar results and wiggle reversal counts.
+`game/tests/steer_consistency.gd` retains seeded ±1.5px jitter RMS <1 degree
+at 60Hz and validates gusts, shallow limits, cosmetic rate and release velocity.
+The instantaneous 60px step test now measures arrival at the true 120px target,
+with 600ms t90 allowance rather than arrival at a discarded-distance target.
 
-```sh
-systemd-run --user --scope -p MemoryMax=3G timeout 15m \
-  "$HOME/.local/bin/godot" --headless --path game \
-  --script tests/steer_probe.gd -- "$PWD/art/qa/steer/after.json"
-python3 tools/steer_report.py
-bash tools/run_smoke.sh
-bash tools/export_web.sh
-```
-
-The report script needs Pillow (available on this host); matplotlib was unavailable
-because its packaging dependency was missing. Raw before/after traces, metrics,
-logs and ten PNG plots are local under ignored `art/qa/steer/`.
-To reconstruct baseline elsewhere, run the same probe against model `34aad73` in
-an isolated checkout; do not overwrite a working main checkout.
-
-Verified: 44 existing model/controller checks and 17 steering checks pass;
-60s smoke ends in play after seven retries, including air gestures, cancellation,
-focus/pause, multitouch handover, golden timing and keyboard gating. Local Web
-export succeeds with 3GiB memory caps. No merge, publication, native build,
-workflow dispatch, secret or export-preset edits. iPhone 15 human feel test pending.
+Run `bash tools/run_smoke.sh` and `bash tools/export_web.sh`; each Godot process
+is systemd-scoped at MemoryMax=3G with a 15-minute timeout. Before/after raw
+logs live in ignored `art/qa/steer/`. For baseline capture, use this probe against
+b6f347a in a separate checkout with `-- --capture` (skip post-fix assertions).
+44 model checks, 17 steering checks, fidelity assertions and the 60-second
+play/wipeout/retry smoke pass. Local web export passes; no merge/publication.
+Human iPhone 15 playtest remains pending.
