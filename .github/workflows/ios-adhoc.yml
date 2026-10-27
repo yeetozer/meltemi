@@ -106,16 +106,20 @@ jobs:
           "$GODOT" --headless --path game --editor --import
           "$GODOT" --headless --path game --export-release iOS "$PWD/build/ios/Meltemi.zip"
           test -d build/ios/Meltemi.xcodeproj
-      - name: Archive with automatic signing
+      - name: Import reusable distribution identity and fetch existing profile (GET only)
+        env:
+          IOS_DISTRIBUTION_P12_BASE64: ${{ secrets.IOS_DISTRIBUTION_P12_BASE64 }}
+          IOS_DISTRIBUTION_P12_PASSWORD: ${{ secrets.IOS_DISTRIBUTION_P12_PASSWORD }}
+          IOS_ADHOC_PROFILE_NAME: ${{ secrets.IOS_ADHOC_PROFILE_NAME }}
+        run: '"$RUNNER_TEMP/asc-venv/bin/python" tools/ios_signing.py install'
+      - name: Archive with existing distribution identity (manual signing)
         run: |
           set -euo pipefail
           if ! xcodebuild archive -project build/ios/Meltemi.xcodeproj -scheme Meltemi -configuration Release \
             -destination 'generic/platform=iOS' -archivePath "$RUNNER_TEMP/Meltemi.xcarchive" \
-            DEVELOPMENT_TEAM="$APPLE_TEAM_ID" CODE_SIGN_STYLE=Automatic \
+            DEVELOPMENT_TEAM="$APPLE_TEAM_ID" CODE_SIGN_STYLE=Manual \
             CURRENT_PROJECT_VERSION="$BUILD_NUMBER" MARKETING_VERSION=0.1.0 TARGETED_DEVICE_FAMILY=1 \
-            CODE_SIGN_IDENTITY="Apple Development" PROVISIONING_PROFILE_SPECIFIER= PROVISIONING_PROFILE= \
-            -allowProvisioningUpdates -authenticationKeyPath "$RUNNER_TEMP/private_keys/AuthKey_${ASC_KEY_ID}.p8" \
-            -authenticationKeyID "$ASC_KEY_ID" -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
+            CODE_SIGN_IDENTITY="$SIGNING_IDENTITY" PROVISIONING_PROFILE_SPECIFIER="$SIGNING_PROFILE_UUID" PROVISIONING_PROFILE= \
             > "$RUNNER_TEMP/archive.log" 2>&1; then
             printf '::error::Archive failed. Redacted error lines follow (device IDs and fingerprints removed).\n'
             grep -E -i 'error:|requires a provisioning|no profiles|no signing|conflicting|failed|not registered' "$RUNNER_TEMP/archive.log" \
@@ -126,11 +130,9 @@ jobs:
       - name: Export Ad Hoc IPA
         run: |
           set -euo pipefail
-          python3 tools/ios_ci.py export-options
+          # ExportOptions.plist was generated from the validated existing profile.
           if ! xcodebuild -exportArchive -archivePath "$RUNNER_TEMP/Meltemi.xcarchive" \
             -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" -exportPath "$RUNNER_TEMP/export-adhoc" \
-            -allowProvisioningUpdates -authenticationKeyPath "$RUNNER_TEMP/private_keys/AuthKey_${ASC_KEY_ID}.p8" \
-            -authenticationKeyID "$ASC_KEY_ID" -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
             > "$RUNNER_TEMP/export.log" 2>&1; then
             printf '::error::Ad Hoc export failed; raw signing diagnostics remain private on the ephemeral runner.\n'
             exit 1
@@ -165,6 +167,9 @@ jobs:
           git pull --rebase origin main
           git push origin HEAD:main
           test "$(git rev-parse HEAD)" = "$(git ls-remote origin refs/heads/main | cut -f1)"
+      - name: Delete temporary signing keychain and profile
+        if: always()
+        run: python3 tools/ios_signing.py cleanup
       - name: Delete private key
         if: always()
         run: rm -rf "$RUNNER_TEMP/private_keys"
