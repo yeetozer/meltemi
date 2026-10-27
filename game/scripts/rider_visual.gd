@@ -5,8 +5,7 @@ var upper: Sprite2D
 var spray_sprite: Sprite2D
 var legs: Node2D
 var carve: float=0.0
-var side: float=1.0
-var mirror_tween: Tween
+var signed_carve: float=0.0
 var suit: Color=Color("22384a")
 var feet: Array[Vector2]=[]
 var paths: Array[PackedVector2Array]=[]
@@ -28,37 +27,32 @@ func set_skins(b: String, c: String) -> void:
  board.texture=AssetLib.texture("sprites/"+str(Skins.BOARDS[b].texture)+".png",Vector2(28.8,43.2))
  upper.texture=AssetLib.texture("sprites/"+str(Skins.CHARACTERS[c].texture)+".png",Vector2(72,72))
  suit=Color(Skins.CHARACTERS[c].suit)
-func update_pose(dt: float, velocity: float, reduce: bool, flip: float, grab: bool) -> void:
- if reduce:
-  if mirror_tween: mirror_tween.kill()
-  scale.x=side
- var target_side: float=signf(velocity) if absf(velocity)>35 else side
- if target_side!=side:
-  side=target_side
-  if mirror_tween: mirror_tween.kill()
-  if reduce: scale.x=side
-  else:
-   mirror_tween=create_tween(); mirror_tween.tween_property(self,"scale:x",side,0.12)
- carve=lerpf(carve,clampf((absf(velocity)-20)/298,0,1),1-exp(-dt/0.10))
- solve(carve)
+func update_pose(dt: float, velocity: float, _reduce: bool, flip: float, grab: bool) -> void:
+ var target: float=signf(velocity)*clampf((absf(velocity)-20)/298,0,1)
+ signed_carve=lerpf(signed_carve,target,1-exp(-dt/0.10))
+ solve(signed_carve)
  scale.y=cos(flip*TAU) if flip>0 else (0.78 if grab else 1.0)
  rotation=0.22 if grab else 0.0
  upper.position=Vector2(0,-17.28+(3.0 if grab else 0.0))
 func solve(amount: float) -> void:
- carve=amount
- var angle: float=deg_to_rad(lerpf(15,45,amount))
+ signed_carve=clampf(amount,-1,1)
+ carve=absf(signed_carve)
+ upper.rotation=deg_to_rad(6)*signed_carve
+ var angle_deg: float=lerpf(15,45,signed_carve) if signed_carve>=0 else lerpf(15,-40,-signed_carve)
+ var angle: float=deg_to_rad(angle_deg)
  board.rotation=angle
  # Expose the nose beside/below the hips instead of burying it under both legs.
- board.position=Vector2(10,13)
+ board.position=Vector2(10*clampf(angle_deg/15,-1,1),13)
  board.scale=Vector2(28.8,43.2)*1.12/board.texture.get_size()
  # Approved SVG attachment (-6,-2), relative to viewBox centre (-8,5), at 0.72 scale.
  spray_sprite.rotation=angle
  spray_sprite.position=board.position+(Vector2(0,23)-Vector2(1.44,-5.04)).rotated(angle)
  feet.assign([board.position+Vector2(0,-10.44*1.12).rotated(angle),board.position+Vector2(0,10.44*1.12).rotated(angle)])
+ if feet[0].x<feet[1].x: feet.reverse()
  paths.clear()
  for i in range(2):
   var sign_: float=1.0 if i==0 else -1.0
-  var hip: Vector2=Vector2(sign_*lerpf(4.68,4.32,amount),-12.24)
+  var hip: Vector2=Vector2(sign_*lerpf(4.68,4.32,carve),-12.24)
   var delta: Vector2=feet[i]-hip
   var perp: Vector2=Vector2(-delta.y,delta.x).normalized()
   if perp.x*sign_<0: perp=-perp
@@ -67,9 +61,10 @@ func solve(amount: float) -> void:
  legs.queue_redraw()
 func draw_legs() -> void:
  # Composite each whole leg so the front outline cuts across the back fill.
- for i: int in [1,0]:
+ var back: int=0 if feet[0].y>feet[1].y else 1
+ for i: int in [back,1-back]:
   for width: float in [8.64,6.12]:
-   var color: Color=Color(1,1,1,0.92) if width>8 else (suit.lightened(0.18) if i==1 else suit)
+   var color: Color=Color(1,1,1,0.92) if width>8 else (suit.lightened(0.18) if i==back else suit)
    legs.draw_polyline(paths[i],color,width,true)
    for p: Vector2 in paths[i]: legs.draw_circle(p,width/2,color,true,-1,true)
  for foot: Vector2 in feet:
@@ -79,4 +74,5 @@ func draw_legs() -> void:
 func tail_point() -> Vector2:
  return to_global(board.position+Vector2(0,23).rotated(board.rotation))
 func bar_point(index: int) -> Vector2:
- return to_global([Vector2(-10.97,-32.77),Vector2(8.423,-34.126),Vector2(-1.273,-33.448),Vector2(-1.273,-33.448)][index]+Vector2(0,upper.position.y+17.28))
+ var point: Vector2=[Vector2(-10.97,-32.77),Vector2(8.423,-34.126),Vector2(-1.273,-33.448),Vector2(-1.273,-33.448)][index]
+ return to_global(upper.position+(point-Vector2(0,-17.28)).rotated(upper.rotation))

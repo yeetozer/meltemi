@@ -383,7 +383,7 @@ func _process(dt: float) -> void:
  get_viewport().canvas_transform=Transform2D(Vector2(zoom_,0),Vector2(0,zoom_),center_*(1-zoom_)+shake_)
  if OS.has_feature("editor") and snap in ["left_carve","right_carve"]:
   run.lateral_velocity=-318 if snap=="left_carve" else 318; run.visual_heading=-0.42 if snap=="left_carve" else 0.42
-  rider_visual.side=-1 if snap=="left_carve" else 1; rider_visual.scale.x=rider_visual.side; rider_visual.carve=1
+  rider_visual.solve(-1 if snap=="left_carve" else 1)
  var scale_: float=1+air_height*0.6 if not save.data.reduce_motion else 1
  var menu_time: float=0.0 if save.data.reduce_motion else clock
  var pos: Vector2=Vector2(run.x,rider_y()) if state in ["play","crash"] else Vector2(360+sin(menu_time*0.45)*100,height*0.49)

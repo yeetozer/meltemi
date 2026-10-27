@@ -2,7 +2,7 @@
 
 The approved SVGs are copied byte-for-byte into `art/src`: two boards, two upper bodies, tail spray and four kite colourways. Do not regenerate/redraw these sources with the legacy drawing functions. `art/build_assets.py` preserves them, supersamples rider layers at 4× and records actual output dimensions in the manifest. The legacy `rider.png` remains for historical offline art composites only; gameplay has no reference to it.
 
-`game/resources/rider_rig.json` records the approved layer anchors plus the phone-readability placement/scale adjustment. `rider_visual.gd` ports `layers.py`'s hip interpolation, rotated strap endpoints, knee bend (convert length to design units first), outline/fill ordering and rotated foot ellipses. All coordinates are logical pixels before the rider parent's 1.5× gameplay scale. The visual child owns mirroring, procedural legs and trick squash/tuck; the parent retains heading/spin/air transforms. Board angle exponentially blends 15–45° with lateral speed. Mirror changes require >35 px/s and use an interruptible 0.12-second tween; Reduce Motion applies the side instantly. Spray follows the rotated tail, not an unrelated world point. The menu wake ends at that same transformed tail.
+`game/resources/rider_rig.json` records the approved layer anchors plus the phone-readability placement/scale adjustment. `rider_visual.gd` ports `layers.py`'s hip interpolation, rotated strap endpoints, knee bend (convert length to design units first), outline/fill ordering and rotated foot ellipses. All coordinates are logical pixels before the rider parent's 1.5× gameplay scale. The visual child owns signed carving, procedural legs and trick squash/tuck; the parent retains heading/spin/air transforms. Never mirror the rider: scale.x stays 1, including reversals. The signed target is sign(v) × clamp((abs(v) − 20) / 298, 0, 1), exponentially smoothed with a 0.10-second time constant; `carve` remains abs(signed_carve). Board angle is lerp(15,45,s) for s≥0 and lerp(15,-40,-s) otherwise. Its offset is (10 × clamp(angle_deg/15,-1,1),13). Upper body leans 6° × s about its sprite position, and all bar anchors rotate about that same pivot before the full rider global transform. Spray follows the rotated tail, not an unrelated world point. The menu wake ends at that same transformed tail.
 
 Four solid kite lines transform the approved bar and kite anchors through the complete scene transforms every frame. Kite gameplay scale is 1.45×; airborne scaling remains unchanged.
 
@@ -13,8 +13,8 @@ Four solid kite lines transform the approved bar and kite anchors through the co
 ## Verification and evidence
 
 - `tools/run_smoke.sh` includes model, steering, fidelity, hold-still, gameplay/menu, all skin combinations and normal-play flip/grab tests.
-- Skin tests compare foot endpoints and bar anchors against the original JSON at both board-angle endpoints in both mirror states, verify real texture paths and old-save migration/independent selection persistence.
-- Pose tests exercise the real main-loop trick transforms, grab release, hysteresis, a timed mirror reversal and Reduce Motion.
+- Skin tests compare foot endpoints against the JSON at nine signed carve samples across all four skins; check nonintersecting leg segments, tail spray, bar ordering and noncrossing outer kite lines at six flip phases plus grab, verify real texture paths and old-save migration/independent selection persistence.
+- Pose tests exercise the real main-loop transforms, live kite-line intersections, grab release, rapid signed reversals and Reduce Motion.
 - `python3 art/audit_assets.py` checks 41 manifest images.
 - `tools/export_web.sh` uses the unchanged Web preset.
 
@@ -26,7 +26,7 @@ Linux dummy-audio shutdown can report retained AudioStreamWAV/playback objects a
 
 ## Final phone-size polish (v5)
 
-Each leg now draws outline then fill, back before front, so the front white contour remains visible across the back leg. The back suit uses `suit.lightened(0.18)` for every skin. Straight hips widen from ±5 to ±6.5 design units (±4.68 logical px), blending to unchanged carve hips; knees re-solve and strap endpoints remain exact. Tests sample five blend positions on both mirror sides and all skins.
+Each leg now draws outline then fill, back before front, so the front white contour remains visible across the back leg. The back suit uses `suit.lightened(0.18)` for every skin. Straight hips widen from ±5 to ±6.5 design units (±4.68 logical px), blending to unchanged carve hips; knees re-solve and strap endpoints remain exact. Tests sample nine signed positions and all skins. Each hip connects to the strap on its own x side; knees bend outward. The lower strap leg is drawn first and lightened 18%.
 
 Spray uses the approved SVG attachment (-6,-2), relative to viewBox centre (-8,5), rather than an arbitrary leftward offset. Both sprite and attachment offset rotate with the board; a regression checks the transformed attachment equals the tail.
 
@@ -43,3 +43,7 @@ Kite offset now follows signed lateral velocity (±170 logical px) rather than t
 The title XP track is darker, Best/shell stats are grouped more tightly, and all action rows share an explicit 20px gap.
 
 `tools/rider_pixel_proof.py` projects original texture alpha through a capture-sidecar transform and samples final screenshot pixels, not generated colour swatches. `board_pixel_proof.json` contains full-frame/crop bounds, the mean RGB over the complete board footprint (including rails, straps and leg occlusion), and independently counted visible cream/terracotta pixels. Straight/left/right frames contain respectively 1186/1368/1368 cream pixels with mean RGB approximately `(243,235,222)`, plus 41/114/114 terracotta pixels. Screenshots are 1179×2556; 3× crops retain both kite tips and all lines. Movie is 600 real rendered frames at 30 FPS, 720×1562, 20s; gameplay harness confirms both sides, full blend range and no crash. Project viewport and Web preset are unchanged.
+
+## No-mirror carve evidence
+
+Current captures are in ignored `art/qa/carve-v1/`: full 1179×2556 in-engine left/straight/right and menu images, labelled nearest-neighbour 3× comparisons, transition strip, line close-up and a 20-second rendered input-driven gameplay movie. Menu uses the same signed rig and stays static under Reduce Motion. Physics, steering constants, approved SVGs and Web export preset are unchanged.

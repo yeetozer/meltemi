@@ -1,6 +1,6 @@
 {
   "units_to_px": 0.72,
-  "origin": "rider origin; board offset (10,13) exposes nose below hips; +y = down-screen",
+  "origin": "rider origin; +y down-screen; never mirror scale.x",
   "board": {
     "readability_scale": 1.12,
     "sprite_offset_px": [
@@ -23,7 +23,9 @@
       23.0
     ],
     "angle_straight_deg": 15.0,
-    "angle_full_carve_deg": 45.0
+    "angle_full_carve_deg": 45.0,
+    "angle_full_left_deg": -40,
+    "offset_rule": "x=10*clamp(angle_deg/15,-1,1), y=13"
   },
   "upper": {
     "sprite_offset_px": [
@@ -59,7 +61,8 @@
         8.423,
         -34.126
       ]
-    }
+    },
+    "lean_deg": "6*signed_carve, around sprite position; bar anchors rotate about same pivot"
   },
   "legs": {
     "outline_width_px": 8.64,
@@ -73,7 +76,8 @@
     ],
     "foot_rotation": "board angle",
     "knee": "mid(hip,foot) + perp*bend, perp chosen so its x has sign +1 for front leg and -1 for back leg; bend_units = max(3.5, 9 - 0.12*len_units)",
-    "draw_order": "back leg outline, back leg fill (suit lightened 18%), front leg outline, front leg fill, feet"
+    "draw_order": "larger-y strap leg outline then 18%-lightened fill; other leg outline then fill; feet",
+    "assignment": "right hip to larger-x strap, left hip to smaller-x strap; knee perp points outward"
   },
   "spray": {
     "anchor": "SVG attachment (-6,-2) aligned to board tail; sprite and local offset rotate with board angle",
@@ -123,5 +127,15 @@
         "skin": "#B9805A"
       }
     }
+  },
+  "carve": {
+    "signed_range": [
+      -1,
+      1
+    ],
+    "target": "sign(v)*clamp((abs(v)-20)/298,0,1)",
+    "smoothing_seconds": 0.1,
+    "unsigned_compatibility": "carve = abs(signed_carve)",
+    "mirror": false
   }
 }
