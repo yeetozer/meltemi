@@ -68,10 +68,10 @@ def wave(gold=False):
  mid='#F2B93B' if gold else '#49AEAF'
  light='#FFF7D0' if gold else '#BDE9DC'
  shadow='#B97E2E' if gold else '#1F6F8B'
- b=f'<defs><linearGradient id="slope" x1="0" y1="0" x2="0" y2="1"><stop stop-color="{light}"/><stop offset=".38" stop-color="{mid}" stop-opacity=".86"/><stop offset="1" stop-color="{sea}" stop-opacity="0"/></linearGradient><linearGradient id="back" x1="0" y1="0" x2="0" y2="1"><stop stop-color="{deep}" stop-opacity="0"/><stop offset="1" stop-color="{deep}" stop-opacity=".23"/></linearGradient></defs>'
+ b=f'<defs><linearGradient id="slope" x1="0" y1="0" x2="0" y2="1"><stop stop-color="{light}"/><stop offset=".38" stop-color="{mid}" stop-opacity=".86"/><stop offset=".90" stop-color="{mid}" stop-opacity=".64"/><stop offset=".97" stop-color="{mid}" stop-opacity=".58"/><stop offset="1" stop-color="{mid}" stop-opacity="0"/></linearGradient><linearGradient id="back" x1="0" y1="0" x2="0" y2="1"><stop stop-color="{deep}" stop-opacity="0"/><stop offset="1" stop-color="{deep}" stop-opacity=".23"/></linearGradient></defs>'
  b+=path('M20 25 Q90 -2 180 10 Q246 5 283 22 L276 32 Q170 19 28 38Z','url(#back)')
  b+=path('M24 24 Q95 18 155 28 Q217 37 273 23 C283 44 280 68 261 84 Q218 93 170 87 Q96 99 48 80 Q18 63 24 24Z','url(#slope)')
- b+=path('M32 87 Q110 97 169 90 Q229 91 267 83','none',deep,5,extra='opacity=".06"')
+ # No detached toe stroke: the organic face contour owns its tight falloff.
  if gold: b+=path('M41 58 Q142 74 260 57','none',shadow,8,extra='opacity=".06"')
  for x,y in [(58,31),(89,28),(126,32),(165,36),(202,36),(240,32)]:
   b+=path(f'M{x} {y+5} Q{x-7} {y+22} {x-3} {y+43}','none',light,1.8,extra='opacity=".22"')
@@ -80,7 +80,7 @@ def wave(gold=False):
  b+=path(crest,'none','#E0F5E9',9 if gold else 7)
  b+=path(crest,'none','#FFFFFF',4 if gold else 3)
  b+=path('M31 25 Q17 30 25 39 Q36 33 32 48 Q47 40 43 54 M93 27 Q86 35 96 43 L103 35 M201 32 Q194 42 204 48 L212 37','none','#F5FFF7',4)
- b+=path('M22 47 L16 52 M31 60 L25 65 M40 55 L36 60 M19 37 L12 39','none','#F5FFF7',3)
+ b+=path('M25 37 Q26 43 22 47 L16 52 M32 46 Q35 54 31 60 L25 65 M43 51 L40 55 L36 60 M24 33 L19 37 L12 39','none','#F5FFF7',3)
  for x,y in [(47,44),(83,36),(184,38),(232,36)]: b+=ellipse(x,y,2.2,1.4,'#F5FFF7')
  if gold:
   b+=path('M53 19 Q98 18 140 25 M162 25 Q214 31 256 20','none','#FFF7D0',2.5)
