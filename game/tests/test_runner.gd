@@ -8,6 +8,23 @@ func check(ok: bool,name_: String) -> void:
  if ok: passed+=1; print("PASS ",name_)
  else: failed+=1; printerr("FAIL ",name_)
 func _initialize() -> void:
+ var controller=load("res://scripts/main.gd").new()
+ var key: InputEventKey=InputEventKey.new()
+ key.keycode=KEY_LEFT; key.pressed=true
+ controller.state="play"; controller._unhandled_input(key)
+ check(controller.key_left and controller.run.steering,"keyboard steers during play")
+ controller.state="pause"; controller.clear_controls()
+ check(not controller.key_left and not controller.run.steering,"pause clears keyboard steering")
+ var ignored: bool=true
+ for menu: String in ["pause","title","shop","over"]:
+  controller.state=menu
+  for code: int in [KEY_LEFT,KEY_RIGHT,KEY_A,KEY_D]:
+   key.keycode=code; controller._unhandled_input(key)
+   ignored=ignored and not controller.key_left and not controller.key_right and not controller.run.steering
+ check(ignored,"menu keyboard presses cannot re-arm steering")
+ controller.state="play"
+ check(not controller.key_left and not controller.key_right and not controller.run.steering,"resume has no stale keyboard hold")
+ controller.free()
  var r: RunModel=Model.new()
  for direction: float in [-1.0,1.0]:
   r=Model.new(); r.begin_steering(200)

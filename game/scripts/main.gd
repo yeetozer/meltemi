@@ -241,13 +241,13 @@ func _unhandled_input(event: InputEvent) -> void:
      var next_id: int=int(gameplay_touches.keys()[0])
      anchor_touch(next_id,gameplay_touches[next_id],false)
  elif event is InputEventKey and not event.echo:
-  if event.keycode in [KEY_LEFT,KEY_A]: key_left=event.pressed
-  elif event.keycode in [KEY_RIGHT,KEY_D]: key_right=event.pressed
+  if event.keycode in [KEY_LEFT,KEY_A]: key_left=event.pressed and state=="play"
+  elif event.keycode in [KEY_RIGHT,KEY_D]: key_right=event.pressed and state=="play"
   elif event.keycode==KEY_SPACE and event.pressed:
    if state=="title": start()
    elif state=="play" and run.air>0: run.tap()
   elif event.pressed and event.keycode==KEY_ESCAPE and state=="play": show_menu("pause")
-  if touch_id<0:
+  if state=="play" and touch_id<0:
    if key_left or key_right:
     if not run.steering: run.begin_steering(0)
    else: run.end_steering()
