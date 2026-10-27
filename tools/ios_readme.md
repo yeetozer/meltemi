@@ -2,10 +2,10 @@
 
 The lead must add repository Actions secrets **ASC_KEY_ID**, **ASC_ISSUER_ID**,
 **ASC_KEY_P8_BASE64** (base64-encoded Apple .p8 key), **APPLE_TEAM_ID**, and
-**MELTEMI_PLAY_TOKEN**. The Apple key needs permission to register devices and
+**MELTEMI_PLAY_DEPLOY_KEY**. The Apple key needs permission to register devices and
 bundle IDs and manage automatic signing (including cloud-managed distribution
-certificates). The Pages token needs Contents read/write access to
-`yeetozer/meltemi-play`; the source repository GITHUB_TOKEN cannot push there.
+certificates). The deploy key is an SSH private key whose public half is a write-enabled
+deploy key on `yeetozer/meltemi-play` only; the source GITHUB_TOKEN cannot push there.
 Never commit keys or put a token in dispatch inputs.
 
 ```sh
@@ -45,7 +45,7 @@ and build version in its checkout only. No iOS templates or Mac are required loc
 The deploy checkout targets the existing `meltemi-play` main branch and stages
 only `ios/Meltemi.ipa`, `ios/manifest.plist`, `ios/index.html`; it rebases on concurrent
 web publications and never force-pushes. The existing Pages configuration must
-publish that branch/root and the token must be allowed to trigger Pages builds.
+publish that branch/root and a deploy-key push must trigger a Pages build (otherwise request one via the Pages API).
 An IPA must remain below GitHub's 100 MiB per-file limit. No web build is republished
 by this workflow. Re-running the same Actions run retains its build number.
 

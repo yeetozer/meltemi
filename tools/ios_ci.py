@@ -22,7 +22,7 @@ BASE = 'https://yeetozer.github.io/meltemi-play/ios'
 
 
 def prepare():
-    for name in ('ASC_KEY_ID', 'ASC_ISSUER_ID', 'ASC_KEY_P8_BASE64', 'APPLE_TEAM_ID', 'MELTEMI_PLAY_TOKEN'):
+    for name in ('ASC_KEY_ID', 'ASC_ISSUER_ID', 'ASC_KEY_P8_BASE64', 'APPLE_TEAM_ID', 'MELTEMI_PLAY_DEPLOY_KEY'):
         if not os.environ.get(name):
             raise SystemExit('Missing required secret: ' + name)
     udid = os.environ['DEVICE_UDID']
