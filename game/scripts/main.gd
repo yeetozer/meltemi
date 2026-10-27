@@ -455,7 +455,16 @@ func _draw() -> void:
      for side_: int in [-1,1]:
       draw_line(center+Vector2(side_*size_.x*0.3,size_.y*0.36),center+Vector2(side_*size_.x*0.65,size_.y*0.5+22+pulse),Color(1,1,1,0.30),5,true)
       draw_line(center+Vector2(side_*size_.x*0.3,size_.y*0.36),center+Vector2(side_*size_.x*0.65,size_.y*0.5+22+pulse),Color(1,1,1,0.6),1.5,true)
-   draw_texture_rect(tex_,Rect2(center+Vector2(0,bob)-size_/2,size_),false)
+   if obj.kind in ["wave","wave_gold"]:
+    # Texture-only swell breathing; collision footprint and launch remain fixed.
+    var swell: float=0.0 if save.data.reduce_motion else sin(clock*1.7+float(obj.x)*0.01)
+    var visual_size: Vector2=size_*Vector2(1.0+swell*0.008,1.0+swell*0.045)
+    draw_texture_rect(tex_,Rect2(center-visual_size/2,visual_size),false,Color(1,1,1,0.96+swell*0.04))
+    if not save.data.reduce_motion:
+     var drift: float=sin(clock*1.3+float(obj.x))*7
+     draw_line(center+Vector2(-65+drift,-9),center+Vector2(-44+drift,-10),Color(1,1,1,0.30+0.12*swell),1,true)
+   else:
+    draw_texture_rect(tex_,Rect2(center+Vector2(0,bob)-size_/2,size_),false)
  if state not in ["play","crash"]:
   draw_rect(Rect2(115,maxf(safe_top,height*0.065),490,panel.size.y+45),Color("f4ebdd"))
 

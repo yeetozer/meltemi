@@ -63,10 +63,19 @@ for i in range(10):
 add('starfish',40,40,f'<polygon points="{" ".join(pts)}" fill="{terra}" stroke="{lemon}" stroke-width="2" stroke-linejoin="round"/>'+ellipse(19,18,3,3,lemon))
 add('gust',80,80,line('M8 29 L53 29 C79 29 72 5 58 14 M14 42 L65 42 C82 42 75 65 63 57 M7 55 L38 55 C56 55 49 73 40 66','#FFFFFF',4)+line('M14 35 L41 35',sea,2))
 def wave(gold=False):
- color=lemon if gold else '#FFFFFF';b=path('M2 26 Q12 12 64 21 T128 21 T192 21 Q244 12 254 26 Q247 39 224 37 Q208 33 192 43 T128 43 T64 43 Q18 34 2 26Z',sea,'none',extra='opacity=".18"')
- b+=path('M0 14 Q32 -4 64 14 T128 14 T192 14 T256 14 L256 27 Q224 9 192 27 T128 27 T64 27 T0 27Z',color)
- b+=line('M0 33 Q32 15 64 33 T128 33 T192 33 T256 33',cream,2)
- if gold:b+=path('M107 5 L110 12 L117 15 L110 18 L107 25 L104 18 L97 15 L104 12Z','#FFFFFF')
+ # Rider approaches from +y: transparent toe rises to a bright, continuous lip.
+ warm='#F6E7A6' if gold else '#D9F3E8'
+ b=f'<defs><linearGradient id="face" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="{warm}"/><stop offset=".38" stop-color="{lemon if gold else '#B5E6D8'}" stop-opacity=".95"/><stop offset=".72" stop-color="{lemon if gold else sea}" stop-opacity=".65"/><stop offset="1" stop-color="{sea}" stop-opacity="0"/></linearGradient><linearGradient id="trough" x1="0" y1="0" x2="0" y2="1"><stop stop-color="{deep}" stop-opacity="0"/><stop offset="1" stop-color="{deep}" stop-opacity=".35"/></linearGradient></defs>'
+ b+=path('M9 24 C33 3 211 0 247 24 C210 14 48 14 9 24Z','url(#trough)')
+ b+=path('M9 24 C50 8 205 8 247 24 C228 36 197 45 134 46 C73 47 26 37 9 24Z','url(#face)')
+ b+=path('M12 24 C49 10 205 9 244 24','none',lemon if gold else '#B9E6D8',4)
+ b+=path('M17 23 C61 9 200 11 239 23','none','#FFFFFF',2.4)
+ # Spilling foam is confined to the peeling shoulders, not a scalloped barrier.
+ b+=path('M13 24 Q23 15 39 17 M18 27 Q28 21 36 23 M226 20 Q238 20 243 26','none','#FFFFFF',2)
+ b+=ellipse(23,15,2,1.2,'#FFFFFF')+ellipse(235,17,1.7,1,'#FFFFFF')
+ if gold:
+  for x,y,r in [(67,19,3),(180,15,3.5),(218,27,2)]:
+   b+=path(f'M{x-r} {y} L{x} {y- r*1.6} L{x+r} {y} L{x} {y+r*1.6}Z','#FFFFFF')
  return b
 add('wave',256,48,wave());add('wave_gold',256,48,wave(True))
 b=ellipse(48,49,30,23,'#FFFFFF','opacity=".65"')
