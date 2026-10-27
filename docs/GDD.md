@@ -45,3 +45,18 @@ Shores: sand, white/terracotta houses, olive trees, umbrellas, lighthouse; harbo
 
 ## Non-goals (for now)
 Real physics, multiplayer, ads/IAP, accounts, leaderboards, store release.
+
+
+## Improvement rounds 1–3
+Air gestures use logical pixels: tap release <0.2 s and <40 px travel;
+upward movement >50 px queues a 0.6 s backflip; stationary hold >=0.2 s
+starts a grab (release before landing). Spin duration remains 0.45 s.
+One active trick and at most one queued trick. Grab earns 60 per 0.25 s.
+Last spin/flip completion in final 0.15 s makes the landing perfect (1.5x).
+Normal course retains seed 81273; daily seed is local calendar YYYYMMDD.
+Missions use an ordered 20-goal pool, three slots, 10–40 shell/XP rewards,
+100 XP per level, schema v2 migrates schema v1. Repeated pool cycles remain available.
+Daily share uses native web share when present and also copies text as fallback.
+Presentation tuning: main.gd juice timers/draw; run_model.gd trick durations,
+score/landing rules; missions.gd goals/rewards. Device haptics/share and 60fps
+need a real iPhone Safari playtest; VPS screenshots cannot establish those.

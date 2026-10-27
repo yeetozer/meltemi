@@ -40,6 +40,24 @@ func go() -> void:
  game._unhandled_input(on_pause); pause_ok=game.run.tack==t0
  print("INPUT one tap flips tack exactly once: ",taps_ok,"; tap on pause button does not flip: ",pause_ok)
  ok=ok and taps_ok and pause_ok
+ var gestures: bool=true
+ for kind: String in ["tap","swipe","hold"]:
+  game.start(); game.run.launch(true); game.last_tap_ms=-1000
+  var press: InputEventScreenTouch=InputEventScreenTouch.new(); press.pressed=true; press.position=Vector2(360,900)
+  game._unhandled_input(press)
+  if kind=="swipe":
+   var drag: InputEventScreenDrag=InputEventScreenDrag.new(); drag.position=Vector2(360,820); game._unhandled_input(drag)
+  if kind=="hold": game._process(0.22)
+  else:
+   var release: InputEventScreenTouch=InputEventScreenTouch.new(); release.position=Vector2(360,900); game._unhandled_input(release)
+   game._process(0.01)
+  gestures=gestures and (game.run.spin>0 if kind=="tap" else game.run.flip>0 if kind=="swipe" else game.run.grabbing)
+ print("INPUT air tap->spin swipe->flip hold->grab: ",gestures)
+ game.run.golden=true; game.run.air=0.7; game.apex_done=false; game._process(0.01)
+ game.run.crash("time reset test"); game._process(0.01)
+ var time_ok: bool=Engine.time_scale==1.0
+ print("INPUT golden slow motion crash restores time_scale: ",time_ok)
+ ok=ok and gestures and time_ok
  game.ambient.stream_paused=false
  game.ambient.stop()
  game.ambient.stream=null
