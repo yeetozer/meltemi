@@ -545,9 +545,11 @@ func build_title() -> void:
  for entry: Array in [["MELTEMI",48,110],["Chase the wind",22,174]]:
   var word: Label=Label.new(); word.text=entry[0]; word.position=Vector2(150,entry[2]); word.size=Vector2(420,64); word.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER; word.add_theme_font_size_override("font_size",entry[1]); word.add_theme_color_override("font_color",Color("183e49")); title_ui.add_child(word)
  title_button("⚙",Vector2(500,maxf(safe_top,90)),Vector2(88,88),func() -> void: show_menu("settings"))
- title_button("First ride" if int(save.data.best)==0 else "Best  %s" % save.data.best,Vector2(175,238),Vector2(230,52),Callable(),false)
- title_button("%s" % save.data.shells,Vector2(425,238),Vector2(95,52),Callable(),false)
- var icon: TextureRect=TextureRect.new(); icon.texture=AssetLib.texture("ui/icon_shell.png"); icon.position=Vector2(405,248); icon.size=Vector2(32,32); icon.expand_mode=TextureRect.EXPAND_IGNORE_SIZE; icon.mouse_filter=Control.MOUSE_FILTER_IGNORE; title_ui.add_child(icon)
+ var stats: HBoxContainer=HBoxContainer.new(); stats.position=Vector2(150,238); stats.size=Vector2(420,52); stats.alignment=BoxContainer.ALIGNMENT_CENTER; stats.add_theme_constant_override("separation",12); stats.mouse_filter=Control.MOUSE_FILTER_IGNORE; title_ui.add_child(stats)
+ for text: String in ["First ride" if int(save.data.best)==0 else "Best %s" % save.data.best,"·"]:
+  var stat: Label=Label.new(); stat.text=text; stat.add_theme_font_size_override("font_size",24); stat.add_theme_color_override("font_color",Color("183e49")); stats.add_child(stat)
+ var icon: TextureRect=TextureRect.new(); icon.texture=AssetLib.texture("ui/icon_shell.png"); icon.custom_minimum_size=Vector2(28,28); icon.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_CENTERED; icon.expand_mode=TextureRect.EXPAND_IGNORE_SIZE; icon.mouse_filter=Control.MOUSE_FILTER_IGNORE; stats.add_child(icon)
+ var shells: Label=Label.new(); shells.text=str(save.data.shells); shells.add_theme_font_size_override("font_size",24); shells.add_theme_color_override("font_color",Color("183e49")); stats.add_child(shells)
  title_button("Lv %d · %d/100 XP" % [Missions.level(int(save.data.xp)),int(save.data.xp)%100],Vector2(210,300),Vector2(300,48),Callable(),false)
  var xp: ProgressBar=ProgressBar.new(); xp.position=Vector2(210,350); xp.size=Vector2(300,7); xp.show_percentage=false; xp.value=int(save.data.xp)%100; xp.mouse_filter=Control.MOUSE_FILTER_IGNORE
  var track: StyleBoxFlat=StyleBoxFlat.new(); track.bg_color=Color("205867"); xp.add_theme_stylebox_override("background",track)

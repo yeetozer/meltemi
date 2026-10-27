@@ -15,8 +15,8 @@ func test() -> void:
  for child: Node in game.title_ui.get_children():
   if child is Button: assert(child.size.y>=84,"Menu action touch target too short")
  var found: bool=false
- for child: Node in game.title_ui.get_children():
-  if child is Label and child.text=="First ride": found=true
+ for child: Node in game.title_ui.find_children("*","Label",true,false):
+  if child.text=="First ride": found=true
  assert(found,"First ride must be a plain label")
  press("Missions · 0/3"); assert(game.state=="missions")
  for b: Node in game.panel.get_children():

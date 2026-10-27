@@ -31,11 +31,11 @@
       -17.28
     ],
     "hip_front_px_straight": [
-      3.6,
+      4.68,
       -12.24
     ],
     "hip_back_px_straight": [
-      -3.6,
+      -4.68,
       -12.24
     ],
     "hip_front_px_carve": [
@@ -73,13 +73,13 @@
     ],
     "foot_rotation": "board angle",
     "knee": "mid(hip,foot) + perp*bend, perp chosen so its x has sign +1 for front leg and -1 for back leg; bend_units = max(3.5, 9 - 0.12*len_units)",
-    "draw_order": "back leg outline, front leg outline, back leg fill, front leg fill, feet"
+    "draw_order": "back leg outline, back leg fill (suit lightened 18%), front leg outline, front leg fill, feet"
   },
   "spray": {
-    "anchor": "board tail point (rotates with board position, sprite itself not rotated by board angle)",
+    "anchor": "SVG attachment (-6,-2) aligned to board tail; sprite and local offset rotate with board angle",
     "offset_px": [
-      -5.76,
-      3.6
+      -1.44,
+      5.04
     ]
   },
   "layer_order": [

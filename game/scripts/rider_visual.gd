@@ -51,12 +51,14 @@ func solve(amount: float) -> void:
  # Expose the nose beside/below the hips instead of burying it under both legs.
  board.position=Vector2(10,13)
  board.scale=Vector2(28.8,43.2)*1.12/board.texture.get_size()
- spray_sprite.position=board.position+Vector2(0,23).rotated(angle)+Vector2(-5.76,3.6)
+ # Approved SVG attachment (-6,-2), relative to viewBox centre (-8,5), at 0.72 scale.
+ spray_sprite.rotation=angle
+ spray_sprite.position=board.position+(Vector2(0,23)-Vector2(1.44,-5.04)).rotated(angle)
  feet.assign([board.position+Vector2(0,-10.44*1.12).rotated(angle),board.position+Vector2(0,10.44*1.12).rotated(angle)])
  paths.clear()
  for i in range(2):
   var sign_: float=1.0 if i==0 else -1.0
-  var hip: Vector2=Vector2(sign_*lerpf(3.6,4.32,amount),-12.24)
+  var hip: Vector2=Vector2(sign_*lerpf(4.68,4.32,amount),-12.24)
   var delta: Vector2=feet[i]-hip
   var perp: Vector2=Vector2(-delta.y,delta.x).normalized()
   if perp.x*sign_<0: perp=-perp
@@ -64,9 +66,10 @@ func solve(amount: float) -> void:
   paths.append(PackedVector2Array([hip,knee,feet[i]]))
  legs.queue_redraw()
 func draw_legs() -> void:
- for width: float in [8.64,6.12]:
-  var color: Color=Color(1,1,1,0.92) if width>8 else suit
-  for i: int in [1,0]:
+ # Composite each whole leg so the front outline cuts across the back fill.
+ for i: int in [1,0]:
+  for width: float in [8.64,6.12]:
+   var color: Color=Color(1,1,1,0.92) if width>8 else (suit.lightened(0.18) if i==1 else suit)
    legs.draw_polyline(paths[i],color,width,true)
    for p: Vector2 in paths[i]: legs.draw_circle(p,width/2,color,true,-1,true)
  for foot: Vector2 in feet:

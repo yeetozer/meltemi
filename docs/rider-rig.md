@@ -24,6 +24,16 @@ Ignored real-engine evidence lives in `art/qa/rider-v4/`. Still captures use the
 
 Linux dummy-audio shutdown can report retained AudioStreamWAV/playback objects after tests/captures; these are separate from assertions and rendering, not a claim of iPhone audio/performance validation. A physical iPhone touch/feel pass remains human QA.
 
+## Final phone-size polish (v5)
+
+Each leg now draws outline then fill, back before front, so the front white contour remains visible across the back leg. The back suit uses `suit.lightened(0.18)` for every skin. Straight hips widen from ±5 to ±6.5 design units (±4.68 logical px), blending to unchanged carve hips; knees re-solve and strap endpoints remain exact. Tests sample five blend positions on both mirror sides and all skins.
+
+Spray uses the approved SVG attachment (-6,-2), relative to viewBox centre (-8,5), rather than an arbitrary leftward offset. Both sprite and attachment offset rotate with the board; a regression checks the transformed attachment equals the tail.
+
+Best, a middle dot, shell icon and count share a centred HBox with 12px spacing. The pale cyan/white arrow is intentional projected-course guidance, drawn by `main.gd::_draw()` at lines 462–475 ahead of the board from `run.visual_heading`; it fades near hazards/while airborne. It is not debug UI or the steering target, and is retained without physics changes.
+
+Current ignored evidence: `art/qa/rider-v5/`, including actual 1× phone pixels beside nearest-neighbour 3× legs and a real 600-frame/30fps gameplay movie. Smoke, asset audit and Web export pass; dummy-audio shutdown resource warnings remain and physical iPhone testing is pending.
+
 ## Gameplay readability correction
 
 A running-scene probe confirmed board texture `board_classic.png`, scale `(0.248276,0.249711)`, alpha/modulate 1 and relative z=0 throughout the rig. The wake was already before the rider, not concealing it. The actual readability failure was geometric self-occlusion: the upper body/outlined legs covered the nose/deck of the narrow, alpha-padded board at the shared origin. Moving the board to `(10,13)` and enlarging it only 12% exposes the approved cream deck and terracotta nose; rotated strap endpoints move/scale with it. No approved art changed. Explicit world z=1 wake/particles and z=2 rider/kite prevent particle bursts painting over the rig. Continuous wake, jump/landing particles and local spray all originate at the transformed tail.
