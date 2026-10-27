@@ -47,7 +47,7 @@ class SigningTests(unittest.TestCase):
                 if args[1] == 'cms':
                     return plistlib.dumps(profile)
                 if args[1] == 'find-identity':
-                    return ('NO MATCH' if wrong_cert else fingerprint).encode()
+                    return ('NO MATCH' if wrong_cert else fingerprint + ' "Apple Distribution: Fixture"').encode()
                 return b''
             env = {'RUNNER_TEMP': directory, 'ASC_KEY_ID': 'fixture', 'ASC_ISSUER_ID': 'fixture',
                    'APPLE_TEAM_ID': 'FIXTURE123', 'DEVICE_UDID': 'fixture-device',

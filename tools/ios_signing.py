@@ -76,7 +76,8 @@ def install():
     assert profile['ExpirationDate'] > datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None), 'Profile expired'
     identities = command('security', 'find-identity', '-v', '-p', 'codesigning', keychain).decode()
     matches = [hashlib.sha1(cert).hexdigest().upper() for cert in profile['DeveloperCertificates']
-               if hashlib.sha1(cert).hexdigest().upper() in identities]
+               if any(hashlib.sha1(cert).hexdigest().upper() in line and '"Apple Distribution:' in line
+                      for line in identities.splitlines())]
     if len(matches) != 1:
         raise RuntimeError('Existing profile must contain the imported valid distribution identity')
     directory = Path.home() / 'Library/MobileDevice/Provisioning Profiles'

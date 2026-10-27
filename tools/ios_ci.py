@@ -87,11 +87,8 @@ def register():
 
 
 def export_options():
-    options = {'method': 'release-testing', 'destination': 'export',
-               'teamID': os.environ['APPLE_TEAM_ID'], 'signingStyle': 'automatic',
-               'manageAppVersionAndBuildNumber': False, 'stripSwiftSymbols': True, 'thinning': '<none>'}
-    with (Path(os.environ['RUNNER_TEMP']) / 'ExportOptions.plist').open('wb') as f:
-        plistlib.dump(options, f)
+    # Only ios_signing.install may generate options from a validated existing profile.
+    raise SystemExit('Use ios_signing.py install for manual signing export options')
 
 
 def package():
