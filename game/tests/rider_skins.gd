@@ -12,6 +12,11 @@ func test() -> void:
     rig.scale.x=mirror
     for amount: float in [0.0,1.0]:
      rig.solve(amount)
+     assert(rig.board.position==Vector2(spec.board.sprite_offset_px[0],spec.board.sprite_offset_px[1]))
+     assert(spec.board.readability_scale<=1.15)
+     assert((rig.board.scale*rig.board.texture.get_size()).distance_to(Vector2(28.8,43.2)*spec.board.readability_scale)<0.001)
+     var tail: Vector2=Vector2(spec.board.tail_px[0],spec.board.tail_px[1])
+     assert(rig.tail_point().distance_to(rig.to_global(rig.board.position+tail.rotated(rig.board.rotation)))<0.001)
      for i: int in range(2):
       var point: Array=spec.board.front_strap_px if i==0 else spec.board.back_strap_px
       var strap: Vector2=Vector2(point[0],point[1])

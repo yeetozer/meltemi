@@ -47,5 +47,5 @@ func _process(_dt: float) -> bool:
 func capture_grid() -> void:
  await RenderingServer.frame_post_draw
  var image: Image=root.get_texture().get_image()
- image.save_png("res://../art/qa/rider-v3/skins_grid.png")
+ image.save_png("res://../art/qa/rider-v4/skins_grid.png")
  quit()

@@ -1,25 +1,26 @@
 {
   "units_to_px": 0.72,
-  "origin": "board centre = rider node origin; +y = down-screen (tail side)",
+  "origin": "rider origin; board offset (10,13) exposes nose below hips; +y = down-screen",
   "board": {
+    "readability_scale": 1.12,
     "sprite_offset_px": [
-      0,
-      0
+      10,
+      13
     ],
     "pivot": "sprite centre",
-    "length_px": 36.0,
-    "width_px": 13.68,
+    "length_px": 40.32,
+    "width_px": 15.3216,
     "front_strap_px": [
       0,
-      -10.44
+      -11.6928
     ],
     "back_strap_px": [
       0,
-      10.44
+      11.6928
     ],
     "tail_px": [
       0,
-      18.72
+      23.0
     ],
     "angle_straight_deg": 15.0,
     "angle_full_carve_deg": 45.0

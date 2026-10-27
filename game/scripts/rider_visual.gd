@@ -48,8 +48,11 @@ func solve(amount: float) -> void:
  carve=amount
  var angle: float=deg_to_rad(lerpf(15,45,amount))
  board.rotation=angle
- spray_sprite.position=Vector2(0,18.72).rotated(angle)+Vector2(-5.76,3.6)
- feet.assign([Vector2(0,-10.44).rotated(angle),Vector2(0,10.44).rotated(angle)])
+ # Expose the nose beside/below the hips instead of burying it under both legs.
+ board.position=Vector2(10,13)
+ board.scale=Vector2(28.8,43.2)*1.12/board.texture.get_size()
+ spray_sprite.position=board.position+Vector2(0,23).rotated(angle)+Vector2(-5.76,3.6)
+ feet.assign([board.position+Vector2(0,-10.44*1.12).rotated(angle),board.position+Vector2(0,10.44*1.12).rotated(angle)])
  paths.clear()
  for i in range(2):
   var sign_: float=1.0 if i==0 else -1.0
@@ -70,5 +73,7 @@ func draw_legs() -> void:
   legs.draw_set_transform(foot,board.rotation,Vector2(3.6,2.304))
   legs.draw_circle(Vector2.ZERO,1,suit,true,-1,true)
  legs.draw_set_transform(Vector2.ZERO)
+func tail_point() -> Vector2:
+ return to_global(board.position+Vector2(0,23).rotated(board.rotation))
 func bar_point(index: int) -> Vector2:
  return to_global([Vector2(-10.97,-32.77),Vector2(8.423,-34.126),Vector2(-1.273,-33.448),Vector2(-1.273,-33.448)][index]+Vector2(0,upper.position.y+17.28))
