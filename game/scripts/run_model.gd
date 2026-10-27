@@ -7,13 +7,22 @@ const AIR_DRIFT: float = 0.25
 const AIR_MARGIN: float = 110.0
 var x: float = 360.0
 # Horizontal finger-to-water displacement multiplier.
-const DRAG_GAIN: float = 1.0
+const DRAG_GAIN: float = 2.0 # test range 1.5-2.5
 # Position follow time constant, seconds.
-const FOLLOW_TAU: float = 0.06
-# Board-heading visual response time, seconds.
-const HEADING_SMOOTH: float = 0.08
-# Ignore sub-pixel finger jitter in logical canvas pixels.
-const DRAG_DEADZONE: float = 3.0
+const FOLLOW_TAU: float = 0.015
+# Board-heading visual response time, seconds; cosmetic only.
+const HEADING_SMOOTH: float = 0.06
+# Accumulated touch slop; disabled after crossing it until the next touch.
+const DRAG_DEADZONE: float = 2.0
+# Seconds of maximum lateral travel allowed ahead of the rider.
+const TARGET_LEAD: float = 0.08
+var slop_crossed: bool = false
+var last_finger: float = 0.0
+var saturated_direction: float = 0.0
+var command_age: float = 1.0
+var command_heading: float = 0.0
+var command_pending: bool = false
+var visual_heading: float = 0.0
 # Maximum lateral carve angle, radians (40 degrees).
 const MAX_HEADING: float = 0.698
 # Opposite heading required to register a mission tack.
@@ -66,15 +75,26 @@ func near_miss(id: int) -> bool:
  near_ids[id]=true; trick_points+=25; event("near"); return true
 func begin_steering(finger_x: float) -> void:
  steering=true; held=true; anchor_x=x; target_x=x; anchor_finger=finger_x
+ slop_crossed=false; last_finger=finger_x; saturated_direction=0; command_age=1; command_heading=0; command_pending=false
 func drag_to(finger_x: float) -> void:
  if not steering: return
- var movement: float = finger_x-anchor_finger
- if absf(movement)<DRAG_DEADZONE: return
- var desired: float = anchor_x+movement*DRAG_GAIN
- target_x=clampf(desired,SHORE-TARGET_MARGIN,720-SHORE+TARGET_MARGIN)
+ var delta: float=finger_x-last_finger
+ last_finger=finger_x
+ if not slop_crossed:
+  if absf(finger_x-anchor_finger)<=DRAG_DEADZONE: return
+  slop_crossed=true
+ if delta!=0: command_age=0; command_pending=true
+ # Reversal after saturation discards any outstanding lead, not finger travel.
+ if saturated_direction*delta<0:
+  anchor_x=x; anchor_finger=finger_x-delta; saturated_direction=0
+ var desired: float=anchor_x+(finger_x-anchor_finger)*DRAG_GAIN
+ var lead: float=TARGET_LEAD*speed*sin(MAX_HEADING)
+ target_x=clampf(clampf(desired,x-lead,x+lead),SHORE-TARGET_MARGIN,720-SHORE+TARGET_MARGIN)
  if target_x!=desired:
+  saturated_direction=signf(desired-x)
   anchor_x=target_x; anchor_finger=finger_x
-func end_steering() -> void:
+func end_steering(keep_command: bool = true) -> void:
+ if keep_command and steering and command_age<=0.05 and absf(command_heading)>0.03: heading=command_heading
  steering=false; held=false
 func tap() -> void:
  if dead: return
@@ -87,6 +107,8 @@ func launch(is_golden: bool = false) -> void:
  if golden: event("golden")
  air_total = (1.8 if golden else 0.9) * clampf(speed / 380.0,1.0,1.3)
  air = air_total
+ # Apply airborne drift damping once; subsequent heading is the actual course.
+ heading=atan2(tan(heading)*AIR_DRIFT,1.0)
  flips=0; flip=0; grabbing=false; grab_time=0; perfect=false; last_completion=-100
  spins = 0
  spin = 0
@@ -106,18 +128,25 @@ func tick(dt: float) -> void:
  speed = lerpf(START_SPEED,MAX_SPEED,minf(elapsed/90.0,1.0)) * (1.5 if gust > 0 else 1.0)
  if x < SHORE+38 or x > 720-SHORE-38: speed *= 0.6
  var lateral: float = AIR_DRIFT if air > 0 else 1.0
- var vx: float = sin(heading)*speed
+ var vx: float = tan(heading)*speed
  if steering:
   var cap: float = speed*sin(MAX_HEADING)
-  vx=clampf((target_x-x)*(1.0-exp(-dt/FOLLOW_TAU))/maxf(dt,0.00001),-cap,cap)
-  heading=lerpf(heading,asin(clampf(vx/speed,-1.0,1.0)),1.0-exp(-dt/HEADING_SMOOTH))
+  target_x=clampf(target_x,x-cap*TARGET_LEAD,x+cap*TARGET_LEAD)
+  vx=clampf((target_x-x)*(1.0-exp(-dt/FOLLOW_TAU))/maxf(dt,0.00001),-cap,cap)*lateral
+ var previous_x: float=x
+ x+=vx*dt
+ if air>0: x=clampf(x,SHORE+AIR_MARGIN,720-SHORE-AIR_MARGIN)
+ if dt>0 and (steering or x!=previous_x+vx*dt):
+  heading=clampf(atan2((x-previous_x)/dt,speed),-MAX_HEADING,MAX_HEADING)
+ if steering and command_pending and absf(heading)>0.03: command_heading=heading
+ command_pending=false
+ command_age+=dt
+ visual_heading=lerpf(visual_heading,heading,1.0-exp(-dt/HEADING_SMOOTH))
  if air<=0 and absf(heading)>TACK_THRESHOLD:
   var side: int = 1 if heading>0 else -1
   if tack!=0 and side!=tack: event("tacks")
   tack=side
- x += vx*dt*lateral
- if air > 0: x = clampf(x,SHORE+AIR_MARGIN,720-SHORE-AIR_MARGIN)
- distance += cos(heading)*speed*dt/10.0
+ distance += speed*dt/10.0 # speed is forward velocity; heading = atan2(lateral, forward).
  if air <= 0 and (x < SHORE or x > 720-SHORE): crash("Beached")
  if air > 0:
   if grabbing: grab_time+=dt

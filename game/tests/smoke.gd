@@ -57,10 +57,16 @@ func go() -> void:
   var press: InputEventScreenTouch=InputEventScreenTouch.new(); press.pressed=true; press.position=Vector2(360,900)
   game._unhandled_input(press)
   if kind=="swipe":
-   var drag: InputEventScreenDrag=InputEventScreenDrag.new(); drag.position=Vector2(360,820); game._unhandled_input(drag)
+   var drag: InputEventScreenDrag=InputEventScreenDrag.new(); drag.position=Vector2(360,845); game._unhandled_input(drag)
+  if kind=="tap":
+   var drag: InputEventScreenDrag=InputEventScreenDrag.new(); drag.position=Vector2(370,900); game._unhandled_input(drag)
   if kind=="horizontal":
-   var drag: InputEventScreenDrag=InputEventScreenDrag.new(); drag.position=Vector2(380,900); game._unhandled_input(drag)
-  if kind=="hold": game._process(0.22)
+   var drag: InputEventScreenDrag=InputEventScreenDrag.new(); drag.position=Vector2(375,900); game._unhandled_input(drag)
+   drag.position=Vector2(360,845); game._unhandled_input(drag) # Steering lock cannot become a flip.
+  if kind=="hold":
+   game._process(0.34)
+   gestures=gestures and not game.run.grabbing
+   game._process(0.01)
   else:
    var release: InputEventScreenTouch=InputEventScreenTouch.new(); release.position=Vector2(360,900); game._unhandled_input(release)
    game._process(0.01)
@@ -76,7 +82,7 @@ func go() -> void:
   game.start(); game.run.launch(true)
   var press: InputEventScreenTouch=InputEventScreenTouch.new(); press.pressed=true; press.position=Vector2(360,900)
   game._unhandled_input(press)
-  if hold_grab: game._process(0.22)
+  if hold_grab: game._process(0.35)
   var cancel: InputEventScreenTouch=press.duplicate(); cancel.pressed=false; cancel.canceled=true
   game._input(cancel)
   cancellation_ok=cancellation_ok and not game.run.held and game.gameplay_touches.is_empty() and game.touch_id==-1 and not game.run.grabbing and game.run.queued==0 and game.run.spin==0 and game.run.flip==0

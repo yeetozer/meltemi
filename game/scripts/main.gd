@@ -194,7 +194,7 @@ func resume() -> void:
  state="play"; clear_panel(); panel.hide(); hud.show()
 func clear_controls() -> void:
  gameplay_touches.clear(); key_left=false; key_right=false; touch_id=-1; touch_air=false
- run.end_steering()
+ run.end_steering(false)
 func anchor_touch(id: int, pos: Vector2, allow_trick: bool) -> void:
  touch_id=id; touch_origin=pos; touch_position=pos; touch_travel=0; touch_age=0; gesture_done=false
  touch_air=allow_trick and run.air>0
@@ -220,9 +220,9 @@ func _unhandled_input(event: InputEvent) -> void:
   run.drag_to(event.position.x)
   touch_travel=maxf(touch_travel,touch_origin.distance_to(touch_position))
   var displacement: Vector2=touch_position-touch_origin
-  if absf(displacement.x)>Model.DRAG_DEADZONE and absf(displacement.x)>=absf(displacement.y):
+  if absf(displacement.x)>=15 and absf(displacement.x)>=1.5*absf(displacement.y):
    gesture_done=true; run.grab(false)
-  if touch_air and not gesture_done and -displacement.y>50 and absf(displacement.y)>absf(displacement.x):
+  if touch_air and not gesture_done and touch_age<=0.3 and displacement.y<=-55 and -displacement.y>=1.73*absf(displacement.x):
    run.grab(false); run.backflip(); gesture_done=true; audio("trick")
  elif event is InputEventScreenTouch:
   if event.pressed:
@@ -235,7 +235,7 @@ func _unhandled_input(event: InputEvent) -> void:
   elif gameplay_touches.has(event.index):
    gameplay_touches.erase(event.index)
    if event.index==touch_id:
-    if not event.canceled and run.air>0 and touch_air and not gesture_done and touch_age<0.2 and maxf(touch_travel,touch_origin.distance_to(event.position))<40: run.tap(); audio("trick")
+    if not event.canceled and run.air>0 and touch_air and not gesture_done and touch_age<=0.18 and maxf(touch_travel,touch_origin.distance_to(event.position))<=15: run.tap(); audio("trick")
     run.grab(false); touch_id=-1; touch_air=false; run.end_steering()
     if not gameplay_touches.is_empty():
      var next_id: int=int(gameplay_touches.keys()[0])
@@ -264,7 +264,7 @@ func _process(dt: float) -> void:
  popups=popups.filter(func(p: Dictionary) -> bool: return p.age<1.1)
  if state=="play" and run.air>0 and touch_id>=0 and touch_air:
   touch_age+=real_dt
-  if touch_age>=0.2 and touch_travel<40 and not gesture_done:
+  if touch_age>=0.35 and touch_travel<=15 and not gesture_done:
    run.grab(true); gesture_done=true
  if slow_age>=0:
   slow_age+=real_dt
@@ -335,7 +335,7 @@ func _process(dt: float) -> void:
   if run.air<=0: wake.add_point(Vector2(run.x,rider_y()+25))
   while wake.get_point_count()>15: wake.remove_point(0)
   hud.text="%s    ·    %s pts%s" % [run.shells,run.trick_points+run.shells*10,("    x%s" % run.combo) if run.combo>1 else ""]
-  hint.text=("Tap in the air to spin!" if spin_hint else "Drag to steer — let go to hold your line") if not save.data.tutorial_done else ("SHALLOWS — TURN!" if run.x<132 or run.x>588 else "")
+  hint.text=("Tap in the air to spin!" if spin_hint else "Drag to steer · lift to keep your line") if not save.data.tutorial_done else ("SHALLOWS — TURN!" if run.x<132 or run.x>588 else "")
   run_spins+=float(run.events.get("spins",0))
   run.events.distance=run.distance; run.events.run_spins=run_spins; run.events.run_shells=run.shells
   var completed: Array=Missions.update(save.data,run.events)
@@ -364,7 +364,7 @@ func _process(dt: float) -> void:
  get_viewport().canvas_transform=Transform2D(Vector2(zoom_,0),Vector2(0,zoom_),center_*(1-zoom_)+shake_)
  var scale_: float=1+air_height*0.6 if not save.data.reduce_motion else 1
  var pos: Vector2=Vector2(run.x,rider_y()) if state in ["play","crash"] else Vector2(360,height*0.88)
- rider.position=pos+Vector2(0,-air_height*60); rider.scale=Vector2.ONE*scale_*1.5; rider.rotation=run.heading+(run.spin*TAU if run.air>0 else 0)
+ rider.position=pos+Vector2(0,-air_height*60); rider.scale=Vector2.ONE*scale_*1.5; rider.rotation=run.visual_heading+(run.spin*TAU if run.air>0 else 0)
  rider.texture=AssetLib.texture("sprites/rider_wipeout.png" if run.dead else "sprites/rider.png",Vector2(72,72))
  kite.texture=AssetLib.texture("sprites/kite_"+str(save.data.selected)+".png",Vector2(140,70)); kite.position=kite.position.lerp(pos+Vector2(sin(run.heading)*170,-190-air_height*90),minf(dt/0.35,1)); kite.scale=Vector2.ONE*scale_*1.2; kite.rotation=-run.heading*0.25
  shadow.position=pos+LIGHT_OFFSET*(1+air_height*2); shadow.scale=Vector2(0.65,0.65)*(1-air_height*0.35); shadow.color.a=0.13-air_height*0.04
@@ -414,6 +414,15 @@ func _draw() -> void:
   draw_texture_rect(kite.texture,Rect2(-70,-35,140,70),false,Color(0.08,0.27,0.32,0.045))
   draw_set_transform(Vector2.ZERO)
  if state in ["play","crash"]:
+  if not run.dead:
+   # Projected course sits ahead of the board; wake stays behind it.
+   var course: Vector2=Vector2(sin(run.heading),-cos(run.heading))
+   var origin: Vector2=Vector2(run.x,rider_y())+course*48
+   var tip: Vector2=origin+course*76
+   var foam: Color=Color(1,1,1,0.42*(1.0-0.85*minf(run.air*5,1)))
+   draw_line(origin,tip,foam,2.5,true)
+   draw_line(tip,tip-course.rotated(0.55)*12,foam,2.5,true)
+   draw_line(tip,tip-course.rotated(-0.55)*12,foam,2.5,true)
   if run.air<=0 and not run.dead:
    var heel: Vector2=Vector2(run.x,rider_y())
    for j in range(5):

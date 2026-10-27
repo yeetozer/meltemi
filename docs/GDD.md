@@ -5,7 +5,7 @@ Target: iPhone 15 Safari (web build first, later native via cloud Mac CI). Keep 
 
 ## Core loop: ride → zig-zag → wave → send → trick → land → repeat
 - World scrolls DOWN; rider always travels UP-screen, carving diagonally (heading ±40° from vertical).
-- **Relative drag steering**: touch anywhere outside UI to anchor; horizontal finger displacement moves a target at 1:1 gain. The rider follows with exponential response and a 40° lateral speed cap. Release preserves current heading; a stationary finger settles straight. Arrows/A-D move the target; Space only spins in air.
+- **Relative drag steering**: touch anywhere outside UI to anchor; horizontal finger displacement moves a target at 2:1 gain (test range 1.5–2.5). A single frame-rate-independent exponential position filter uses tau 0.015 s, with lateral speed capped at forward speed × sin(40°). Physical heading is atan2(actual lateral velocity, forward velocity), clamped to ±40°; separate 0.06 s board rotation smoothing is cosmetic only. Accumulated 2 px slop unlocks continuous tracking for that touch, including slow 1 px movements. Target lead is capped at 80 ms of maximum lateral travel; lead/shore saturation rebases the anchor and reversal discards backlog immediately. Release preserves the last meaningful commanded heading from the last 50 ms; a stationary finger settles straight. Arrows/A-D move the target; Space only spins in air.
   Mouse drag works like touch. Rider rotates continuously, kite follows; spray + wake mark changes.
 - **Wave ramps** (foam lips across part of the lane): riding over one launches automatically.
   Normal wave ≈ 0.9 s airtime (scaled by speed), golden wave ≈ 1.8 s.
@@ -32,7 +32,8 @@ Target: iPhone 15 Safari (web build first, later native via cloud Mac CI). Keep 
 Title (logo, idle rider on water, "Tap to ride", best, shells, Kites, settings) · HUD (distance, score, combo, shells,
 pause; respect iPhone safe areas — nothing in the top ~60 logical px or bottom ~40) · Pause (resume, restart, home,
 sound, reduce motion) · Game over (score, best, NEW BEST, shells earned, big Retry, Home) · Kite shop.
-First run: in-context hints "Drag to steer — let go to hold your line" then at first wave "Tap in the air to spin!".
+First run: in-context hints "Drag to steer · lift to keep your line" then at first wave "Tap in the air to spin!".
+A subtle 76 px foam-white projected course arrow ahead of the board shows physical heading, including after release; it fades 85% in air and is spatially separate from the wake. Native iOS defers edge UI gestures via `display/window/ios/suppress_ui_gesture=true` (verified by installed Godot 4.7.2 `ProjectSettings.has_setting` and `main/main.cpp` / `doc/classes/ProjectSettings.xml` at engine commit `ed1daf0bf001b61586d9930840f2f1394092c079`).
 
 ## Feel
 Juice after control: wake trail, spray particles on tack, squash on landing, small shake on crash
@@ -50,12 +51,18 @@ Real physics, multiplayer, ads/IAP, accounts, leaderboards, store release.
 ## Improvement rounds 1–3
 Drag steering tracks gameplay touches by index (UI excluded), deduplicates Safari compatibility
 events, and emits `tacks` on water direction changes. Pre-launch holds never trigger air tricks;
-only fresh air presses start gestures. Air drift stays damped; landing re-anchors the current finger.
+only fresh air presses start gestures. Air drift stays damped (takeoff course is damped once;
+air steering velocity is quarter-strength, with physical heading calculated after displacement/clamping).
+Speed denotes forward velocity, so distance and atan2 heading share the same forward component.
+Landing re-anchors the current finger.
 Pause clears steering without changing heading.
 
-Air gestures use logical pixels: tap release <0.2 s and <40 px travel;
-upward movement >50 px queues a 0.6 s backflip; stationary hold >=0.2 s
-starts a grab (release before landing). Spin duration remains 0.45 s.
+Air gestures use raw touch history in logical pixels: tap release <=0.18 s and maximum
+excursion <=15 px; horizontal steering locks permanently at |dx|>=15 px and
+|dx|>=1.5×|dy|. A swipe up locks a 0.6 s backflip at dy<=-55 px within 0.3 s
+and upward>=1.73×|dx|. Stationary hold >=0.35 s with excursion <=15 px
+starts a grab (release before landing). Pre-launch fingers retain steering ownership,
+never tricks. Spin duration remains 0.45 s.
 One active trick and at most one queued trick. Grab earns 60 per 0.25 s.
 Last spin/flip completion in final 0.15 s makes the landing perfect (1.5x).
 Normal course retains seed 81273; daily seed is local calendar YYYYMMDD.

@@ -12,34 +12,45 @@ func _initialize() -> void:
  for direction: float in [-1.0,1.0]:
   r=Model.new(); r.begin_steering(200)
   check(r.x==360 and r.target_x==360,"touch down never snaps")
-  r.drag_to(200+direction*100)
   var capped: bool=true
-  for i in range(24):
+  for i in range(100):
+   r.drag_to(200+direction*float(i+1))
    var previous: float=r.x
    r.tick(1.0/60)
    capped=capped and absf(r.x-previous)*60<=r.speed*sin(Model.MAX_HEADING)+0.001
    if i==4: check(r.heading*direction>0,"heading follows drag")
-  check(absf(r.x-(360+direction*100))<15,"100px relative drag follows within 0.4s")
+  check(absf(r.x-(360+direction*200))<5,"100px slow finger drag follows 200px without deadzone loss")
   check(capped,"lateral carve speed capped")
   for i in range(60): r.tick(1.0/60)
   check(absf(r.heading)<0.01,"stationary finger settles straight")
- r=Model.new(); r.begin_steering(0); r.drag_to(200)
- for i in range(10): r.tick(1.0/60)
+  r.end_steering()
+  check(absf(r.heading)<0.01,"stationary release does not revive an old carve")
+ r=Model.new(); r.begin_steering(0)
+ for i in range(10): r.drag_to(float(i+1)*3); r.tick(1.0/60)
+ var commanded: float=r.heading
+ r.target_x=r.x; r.tick(1.0/60) # Zero-velocity catch-up just before lift.
  r.end_steering()
+ check(absf(r.heading-commanded)<0.001,"release ignores zero-velocity catch-up frame")
  var released: float=r.heading
  for i in range(400): r.tick(1.0/60)
  check(r.heading==released and r.reason=="Beached","release holds heading and eventually beaches")
- r=Model.new(); r.begin_steering(0); r.drag_to(100)
- for i in range(12): r.tick(1.0/60)
- r.drag_to(-100)
- for i in range(18): r.tick(1.0/60)
+ r=Model.new(); r.begin_steering(0); r.drag_to(100); r.tick(1.0/60)
+ r.drag_to(-100); r.tick(1.0/60)
  check(r.events.get("tacks",0)==1,"opposite heading hysteresis counts tack")
  r=Model.new(); r.begin_steering(300); r.drag_to(302)
  check(r.target_x==360,"drag deadzone ignores jitter")
  r.drag_to(2000)
- var edge_target: float=r.target_x
  r.drag_to(1990)
- check(r.target_x==edge_target-10,"clamped target reanchors for immediate reversal")
+ check(absf(r.target_x-r.x)<=Model.TARGET_LEAD*r.speed*sin(Model.MAX_HEADING),"target lead bounded to 80ms")
+ r=Model.new(); r.x=625; r.begin_steering(0); r.drag_to(1000)
+ r.drag_to(999)
+ var before_reverse: float=r.x
+ r.tick(1.0/60)
+ check(r.x<before_reverse,"shore clamp reverses within one frame")
+ r=Model.new(); r.launch(true); r.begin_steering(0); r.drag_to(30)
+ var air_previous: float=r.x
+ r.tick(1.0/60)
+ check(absf(r.heading-atan2((r.x-air_previous)*60,r.speed))<0.00001,"air heading uses actual damped lateral velocity")
  r=Model.new(); r.launch(); r.x=360
  for i in range(60): r.x=360; r.tick(1.0/60)
  check(r.air==0 and not r.dead,"wave airborne lands")
