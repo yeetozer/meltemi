@@ -3,9 +3,10 @@ name: Meltemi iPhone Ad Hoc
   workflow_dispatch:
     inputs:
       udid:
-        description: iPhone UDID (new registrations consume an annual Apple device slot)
+        description: Extra tester UDID (empty uses the IPHONE_UDID secret; inputs are visible in public logs)
         type: string
-        required: true
+        required: false
+        default: ''
       device_name:
         description: Name used only for a newly registered device
         type: string
@@ -25,7 +26,7 @@ jobs:
       ASC_KEY_P8_BASE64: ${{ secrets.ASC_KEY_P8_BASE64 }}
       APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
       MELTEMI_PLAY_DEPLOY_KEY: ${{ secrets.MELTEMI_PLAY_DEPLOY_KEY }}
-      DEVICE_UDID: ${{ inputs.udid }}
+      DEVICE_UDID: ${{ inputs.udid || secrets.IPHONE_UDID }}
       DEVICE_NAME: ${{ inputs.device_name }}
       BUILD_NUMBER: 1000.${{ github.run_number }}
     defaults:

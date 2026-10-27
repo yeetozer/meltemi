@@ -9,7 +9,7 @@ deploy key on `yeetozer/meltemi-play` only; the source GITHUB_TOKEN cannot push 
 Never commit keys or put a token in dispatch inputs.
 
 ```sh
-gh workflow run ios-adhoc.yml -R yeetozer/meltemi -f udid=YOUR_IPHONE_UDID -f device_name='Yigit iPhone 15'
+gh workflow run ios-adhoc.yml -R yeetozer/meltemi   # uses the IPHONE_UDID secret
 ```
 
 This registers an absent device (consuming an annual Apple device slot), ensures
