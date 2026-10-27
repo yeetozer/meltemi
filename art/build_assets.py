@@ -27,11 +27,11 @@ def raster(text,file,w,h):
  s=surface(0,w,h); c=context(s);assert render(handle,c);assert write(s,str(file).encode())==0;dc(c);ds(s);unref(handle)
 def add(name,w,h,b,folder='sprites'):
  text=svg(w,h,b); (SRC/(name+'.svg')).write_text(text); dest=OUT/folder/(name+'.png');raster(text,dest,w,h);assets.append(dict(file=str(dest.relative_to(OUT)),w=w,h=h,body=b))
-# Riders: vertical twin-tip board, bent legs, harness, cap, arms and control bar.
-board=path('M28 5 Q36 0 44 5 Q51 34 44 67 Q36 73 28 67 Q21 35 28 5Z',terra,deep,2.2)+path('M33 8 Q36 6 39 8 L40 62 Q36 67 32 62Z',cream)+rect(30,24,12,4,deep,2)+rect(30,48,12,4,deep,2)
-rider=board+line('M33 49 L26 42 L32 34 M40 49 L46 41 L40 33',deep,5)+ellipse(36,31,9,12,deep)+path('M29 25 Q36 21 43 25 L42 35 L30 35Z',sea)+line('M29 28 L22 23 L24 17 M43 28 L50 23 L48 17',sand,5)+line('M22 15 L50 15',deep,3)+line('M22 15 L21 8 M50 15 L51 8',cream,1)+ellipse(36,19,7,7,sand)+path('M29 19 A7 7 0 0 1 43 19 L39 21 L30 20Z',lemon)+line('M30 35 L42 35',terra,3)
+# Thin vertical twin-tip; asymmetric heel-side lean, separated knees and hands.
+board=path('M47 6 Q51 2 55 6 L55 64 Q51 69 47 64Z',deep,cream,1)+line('M49 9 L49 61',sea,1.5)+rect(47,20,8,5,cream,2)+rect(47,47,8,5,cream,2)+line('M48 13 L54 13 M48 57 L54 57',terra,3)
+rider=board+line('M50 22 L36 19 L26 30 M50 49 L36 46 L26 38',sand,4)+line('M48 22 L52 22 M48 49 L52 49',deep,2)+path('M17 25 Q24 22 29 29 L30 38 L19 42 L14 33Z',deep)+path('M18 26 L25 25 L28 33 L18 36Z',sea)+line('M20 39 L28 37',terra,3)+line('M16 29 L12 29',sand,5)+line('M22 26 L28 16 M28 34 L35 23',terra,4)+line('M28 16 L35 20 M35 23 L47 20',sand,2.8)+line('M35 17 L59 17',deep,6)+line('M35 17 L59 17',cream,3)+line('M54 17 L59 17',terra,3)+ellipse(10,29,7,7,sand)+ellipse(9,27,6.5,6.5,lemon)+path('M4 26 Q8 21 13 25','none',cream,1.6)
 add('rider',72,72,rider)
-add('rider_wipeout',72,72,ellipse(36,38,31,23,'#FFFFFF', 'opacity=".65"')+line('M8 30 Q6 54 30 59 M45 16 Q67 19 66 39',cream,3)+f'<g transform="rotate(48 36 36)">{board}</g>'+ellipse(34,36,10,13,deep)+ellipse(31,23,7,7,lemon)+line('M25 35 L14 27 M42 35 L55 29',sand,5))
+add('rider_wipeout',72,72,line('M5 34 Q10 18 29 21 M7 48 Q18 59 32 51 M43 10 Q63 5 68 21',cream,2)+f'<g transform="translate(25 -3) rotate(18 15 36) scale(.65)">{board}</g>'+line('M20 36 L10 44 M25 39 L34 51 M18 31 L7 25 M25 31 L34 24',sand,4)+ellipse(22,35,7,10,deep)+ellipse(20,21,6,6,lemon))
 for name,color in [('sunset',terra),('seaglass',sea),('olive',olive),('lemon',lemon)]:
  b=path('M6 58 C13 2 127 2 134 58 C104 39 36 39 6 58Z',color,deep,1.6)
  b+=path('M30 43 Q34 16 47 13 L55 39Z',cream)+path('M85 39 L93 13 Q108 17 110 44Z',cream)
@@ -40,7 +40,7 @@ for name,color in [('sunset',terra),('seaglass',sea),('olive',olive),('lemon',le
  add('kite_'+name,140,70,b)
 add('buoy',40,40,ellipse(20,22,17,16,terra)+path('M4 21 Q20 28 36 21 L35 27 Q20 34 5 27Z',cream)+ellipse(17,14,9,5,'#E58B64')+ellipse(20,10,3,3,deep))
 def rocks(big=False):
- w,h=(140,110) if big else (70,60);b=ellipse(w/2,h/2,w/2-3,h/2-4,'#FFFFFF','opacity=".65"')
+ w,h=(140,110) if big else (70,60);b=path(f'M3 {h*.55} Q0 {h*.22} {w*.3} {h*.15} Q{w*.6} 0 {w*.85} {h*.3} Q{w+5} {h*.65} {w*.75} {h*.88} Q{w*.43} {h+3} {w*.2} {h*.85}Z',sea,extra='opacity=".42"')
  for x,y,r in ([(46,48,32),(91,58,30),(70,29,20)] if big else [(33,28,24)]):
   b+=path(f'M{x-r} {y+7} L{x-r*.7} {y-r*.6} Q{x} {y-r} {x+r*.7} {y-r*.4} L{x+r} {y+10} L{x+6} {y+r*.7}Z','#ADA88C', '#777C70',1.5)+path(f'M{x-r*.7} {y-r*.6} L{x} {y-r*.5} L{x+4} {y+3} L{x-r} {y+7}Z','#D2C9AC')
  return b
@@ -63,7 +63,7 @@ for i in range(10):
 add('starfish',40,40,f'<polygon points="{" ".join(pts)}" fill="{terra}" stroke="{lemon}" stroke-width="2" stroke-linejoin="round"/>'+ellipse(19,18,3,3,lemon))
 add('gust',80,80,line('M8 29 L53 29 C79 29 72 5 58 14 M14 42 L65 42 C82 42 75 65 63 57 M7 55 L38 55 C56 55 49 73 40 66','#FFFFFF',4)+line('M14 35 L41 35',sea,2))
 def wave(gold=False):
- color=lemon if gold else '#FFFFFF';b=path('M0 21 Q32 3 64 21 T128 21 T192 21 T256 21 L256 43 Q224 25 192 43 T128 43 T64 43 T0 43Z',sea,'none',extra='opacity=".7"')
+ color=lemon if gold else '#FFFFFF';b=path('M2 26 Q12 12 64 21 T128 21 T192 21 Q244 12 254 26 Q247 39 224 37 Q208 33 192 43 T128 43 T64 43 Q18 34 2 26Z',sea,'none',extra='opacity=".18"')
  b+=path('M0 14 Q32 -4 64 14 T128 14 T192 14 T256 14 L256 27 Q224 9 192 27 T128 27 T64 27 T0 27Z',color)
  b+=line('M0 33 Q32 15 64 33 T128 33 T192 33 T256 33',cream,2)
  if gold:b+=path('M107 5 L110 12 L117 15 L110 18 L107 25 L104 18 L97 15 L104 12Z','#FFFFFF')
@@ -99,7 +99,7 @@ for y in range(5,311,14):b+=line(f'M16 {y} L98 {y}',sand,2)
 for x in [17,97]:
  for y in [17,98,183,292]: b+=ellipse(x,y,6,7,'#795F49')+ellipse(x-1,y-2,3,3,sand)
 add('pier',120,320,b,'sprites/scenery')
-add('sandbar',200,90,ellipse(100,45,96,40,sea,'opacity=".35"')+ellipse(100,43,84,30,sand,'opacity=".55"')+path('M31 43 Q60 20 125 24 Q173 25 165 45 Q100 70 31 43Z',cream,extra='opacity=".6"'),'sprites/scenery')
+add('sandbar',200,90,path('M5 50 Q12 19 52 22 Q86 2 128 14 Q193 12 195 47 Q180 72 140 69 Q91 92 53 74 Q9 78 5 50Z',sea,extra='opacity=".35"')+path('M22 47 Q37 24 71 30 Q100 12 139 28 Q181 25 176 50 Q141 72 110 62 Q65 79 22 47Z',sand,extra='opacity=".55"')+path('M31 43 Q60 20 125 24 Q173 25 165 45 Q100 70 31 43Z',cream,extra='opacity=".6"'),'sprites/scenery')
 # UI glyphs, quiet cream plates and hand-drawn geometric wordmark (no font dependency).
 add('icon_pause',64,64,rect(19,14,9,36,cream,4)+rect(36,14,9,36,cream,4),'ui')
 speaker=path('M12 26 L23 26 L36 15 L36 49 L23 38 L12 38Z',cream)
